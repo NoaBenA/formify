@@ -1,0 +1,720 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Formify · פלטפורמת טפסים מקוונים</title>
+<style>
+:root{
+  --pri:#2563eb;--pri-d:#1d4ed8;--bg:#f4f6fb;--card:#fff;--txt:#0f172a;--mut:#64748b;
+  --line:#e3e8f0;--ok:#15803d;--err:#dc2626;--r:14px;
+  --font:Rubik,"Segoe UI",Arial,Helvetica,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{font-family:var(--font);background:var(--bg);color:var(--txt);line-height:1.65;font-size:16px}
+button,input,select,textarea{font-family:inherit;font-size:1rem}
+:focus-visible{outline:3px solid #f59e0b;outline-offset:2px;border-radius:6px}
+.skip{position:absolute;right:-9999px}
+.skip:focus{right:12px;top:12px;background:#fff;padding:8px 14px;z-index:99;border-radius:8px}
+.wrap{max-width:1080px;margin:0 auto;padding:16px}
+header.top{background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:20}
+header.top .wrap{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.logo{font-weight:800;font-size:1.3rem;letter-spacing:-.5px;color:var(--pri);cursor:pointer;background:none;border:0}
+.logo span{color:var(--txt)}
+.grow{flex:1}
+.btn{border:1px solid var(--line);background:#fff;color:var(--txt);padding:9px 16px;border-radius:10px;cursor:pointer;font-weight:600;transition:.15s}
+.btn:hover{background:#f8fafc}
+.btn.pri{background:var(--pri);border-color:var(--pri);color:#fff}
+.btn.pri:hover{background:var(--pri-d)}
+.btn.dng{color:var(--err);border-color:#fecaca}
+.btn.sm{padding:5px 10px;font-size:.85rem;border-radius:8px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.card{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:18px;margin-bottom:14px}
+h1{font-size:1.6rem;margin:.2em 0}h2{font-size:1.2rem;margin:0 0 10px}h3{font-size:1rem;margin:0 0 6px}
+label{display:block;font-weight:600;margin-bottom:5px;font-size:.93rem}
+.hint{color:var(--mut);font-size:.83rem;font-weight:400}
+input[type=text],input[type=number],input[type=date],input[type=datetime-local],input[type=email],select,textarea{
+  width:100%;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fff}
+textarea{min-height:90px;resize:vertical}
+.row{display:flex;gap:12px;flex-wrap:wrap}
+.row>*{flex:1 1 200px}
+.chk{display:flex;align-items:center;gap:8px;font-weight:600;margin:0}
+.chk input{width:18px;height:18px;accent-color:var(--pri)}
+.tabs{display:flex;gap:6px;overflow:auto;padding-bottom:4px;margin-bottom:14px}
+.tab{white-space:nowrap;border:1px solid var(--line);background:#fff;padding:9px 14px;border-radius:999px;cursor:pointer;font-weight:600;color:var(--mut)}
+.tab[aria-current=true]{background:var(--pri);border-color:var(--pri);color:#fff}
+.chip{display:inline-block;padding:2px 10px;border-radius:999px;font-size:.78rem;font-weight:700}
+.chip.on{background:#dcfce7;color:var(--ok)}.chip.off{background:#fee2e2;color:var(--err)}.chip.draft{background:#e2e8f0;color:var(--mut)}
+.grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fill,minmax(260px,1fr))}
+.ftable{width:100%;border-collapse:collapse;font-size:.9rem;min-width:720px}
+.ftable th,.ftable td{padding:10px 12px;border-bottom:1px solid var(--line);vertical-align:middle}
+.ftable th{background:#f8fafc;font-weight:700;color:var(--mut);font-size:.82rem}
+.ftable tr:hover{background:#f8fafc}
+.ftable td a{color:var(--pri)}
+.qcard{border:1px solid var(--line);border-radius:12px;padding:14px;margin-bottom:12px;background:#fff}
+.qcard.drag{opacity:.4}.qcard.over{border-color:var(--pri);border-style:dashed}
+.qhead{display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap}
+.handle{cursor:grab;color:var(--mut);font-size:1.15rem;padding:2px 6px}
+.qtype{font-size:.8rem;font-weight:700;color:var(--pri);background:#eff6ff;padding:2px 9px;border-radius:999px}
+.opt{display:flex;gap:8px;align-items:center;margin-bottom:6px}
+.swatches{display:flex;gap:8px;flex-wrap:wrap}
+.sw{width:34px;height:34px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px var(--line);cursor:pointer}
+.sw[aria-pressed=true]{box-shadow:0 0 0 3px var(--txt)}
+.device{margin:0 auto;transition:.2s;background:#fff;border:1px solid var(--line);border-radius:var(--r);overflow:hidden}
+.device.mobile{max-width:390px}
+.face{--fp:var(--pri)}
+.banner{height:120px;background:var(--fp);background-size:cover;background-position:center}
+.face .body{padding:18px}
+.face h2{color:var(--fp)}
+.fq{padding:14px 0;border-bottom:1px dashed var(--line)}
+.fq:last-child{border:0}
+.req{color:var(--err)}
+.err{color:var(--err);font-size:.85rem;font-weight:600;margin-top:4px}
+.stars{display:flex;gap:6px;direction:ltr;justify-content:flex-end}
+.star{font-size:1.7rem;line-height:1;background:none;border:0;cursor:pointer;color:#cbd5e1;padding:0}
+.star.on{color:#f59e0b}
+.likert{display:flex;gap:6px;flex-wrap:wrap}
+.likert button{flex:1 1 90px;border:1px solid var(--line);background:#fff;border-radius:10px;padding:8px;cursor:pointer;font-size:.85rem}
+.likert button[aria-pressed=true]{background:var(--fp);color:#fff;border-color:var(--fp)}
+.bar{height:26px;background:#eef2f7;border-radius:6px;overflow:hidden;margin:4px 0}
+.bar>i{display:block;height:100%;background:var(--pri)}
+.pie{width:150px;height:150px;border-radius:50%;flex:0 0 auto}
+.legend li{list-style:none;display:flex;align-items:center;gap:8px;margin-bottom:4px;font-size:.9rem}
+.dot{width:12px;height:12px;border-radius:3px;flex:0 0 auto}
+table{width:100%;border-collapse:collapse;font-size:.92rem}
+th,td{text-align:right;padding:9px;border-bottom:1px solid var(--line)}
+th{background:#f8fafc;font-size:.85rem;color:var(--mut)}
+.kpi{display:flex;gap:14px;flex-wrap:wrap}
+.kpi>div{flex:1 1 140px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px}
+.kpi b{display:block;font-size:1.8rem;line-height:1.2}
+.notice{background:#fffbeb;border:1px solid #fde68a;padding:10px 14px;border-radius:10px;font-size:.9rem}
+.timer{position:sticky;top:0;background:#fef2f2;color:var(--err);font-weight:700;text-align:center;padding:8px;z-index:5}
+.toast{position:fixed;bottom:18px;left:50%;transform:translateX(-50%);background:var(--txt);color:#fff;padding:10px 20px;border-radius:999px;z-index:99;font-weight:600}
+.empty{text-align:center;color:var(--mut);padding:40px 10px}
+.sidebar{position:fixed;right:0;top:0;width:260px;height:100vh;background:#fff;border-left:1px solid var(--line);z-index:40;transform:translateX(100%);transition:transform .25s;display:flex;flex-direction:column}
+.sidebar.open{transform:translateX(0)}
+.sidebar-head{padding:16px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:10px}
+.sidebar-head h2{margin:0;font-size:1.1rem}
+.sidebar-body{flex:1;overflow:auto;padding:10px}
+.sidebar-body button{display:block;width:100%;text-align:right;padding:12px 14px;border:0;background:none;border-radius:10px;font-weight:600;cursor:pointer;margin-bottom:4px}
+.sidebar-body button:hover{background:#f1f5f9}
+.sidebar-body button.pri{background:var(--pri);color:#fff}
+.sidebar-body button.pri:hover{background:var(--pri-d)}
+.sidebar-foot{padding:14px;border-top:1px solid var(--line);font-size:.8rem;color:var(--mut);text-align:center}
+.hamburger{width:44px;height:44px;border:1px solid var(--line);background:#fff;border-radius:10px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;z-index:50}
+.hamburger span{display:block;width:20px;height:2px;background:var(--txt);border-radius:2px;transition:.2s}
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.25);z-index:35;opacity:0;pointer-events:none;transition:opacity .2s}
+.overlay.show{opacity:1;pointer-events:auto}
+.hero{text-align:center;padding:60px 20px 40px}
+.hero h1{font-size:2.4rem;margin:0 0 10px}
+.hero p{color:var(--mut);font-size:1.1rem;margin:0 0 30px}
+.hero-actions{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+@media(max-width:600px){.wrap{padding:12px}h1{font-size:1.3rem}}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">דילוג לתוכן הראשי</a>
+<div id="app"></div>
+<script>
+/* ===================== עזרים ===================== */
+const $=s=>document.querySelector(s);
+const uid=()=>Math.random().toString(36).slice(2,9);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const PAL=['#2563eb','#0d9488','#7c3aed','#db2777','#ea580c','#65a30d','#0891b2','#dc2626'];
+const KF='formify.forms', KR='formify.responses';
+const db={
+  forms:()=>JSON.parse(localStorage.getItem(KF)||'[]'),
+  setForms:f=>localStorage.setItem(KF,JSON.stringify(f)),
+  res:()=>JSON.parse(localStorage.getItem(KR)||'[]'),
+  setRes:r=>localStorage.setItem(KR,JSON.stringify(r))
+};
+const getForm=id=>db.forms().find(f=>f.id===id);
+const saveForm=f=>{const a=db.forms(),i=a.findIndex(x=>x.id===f.id);i<0?a.push(f):a[i]=f;db.setForms(a)};
+const resOf=id=>db.res().filter(r=>r.formId===id);
+function toast(t){const d=document.createElement('div');d.className='toast';d.textContent=t;d.setAttribute('role','status');document.body.appendChild(d);setTimeout(()=>d.remove(),2600)}
+function dl(name,text,mime){const b=new Blob([text],{type:mime});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;a.click();URL.revokeObjectURL(a.href)}
+const fmt=d=>d?new Date(d).toLocaleString('he-IL',{dateStyle:'short',timeStyle:'short'}):'—';
+
+/* ===================== מודל ===================== */
+const QT={choice:'בחירה',text:'טקסט חופשי',number:'מספר',id:'תעודת זהות',rating:'דירוג / ליקרט',date:'תאריך',file:'העלאת קובץ'};
+const LIKERT=['בכלל לא מסכים','לא מסכים','ניטרלי','מסכים','מסכים מאוד'];
+function newQ(type){
+  const q={id:uid(),type,title:'',desc:'',required:false};
+  if(type==='choice')Object.assign(q,{multi:false,options:['אפשרות 1','אפשרות 2'],allowOther:false});
+  if(type==='text')Object.assign(q,{long:false,minLen:null,maxLen:null});
+  if(type==='number')Object.assign(q,{min:null,max:null,minDigits:null,maxDigits:null});
+  if(type==='id')Object.assign(q,{checkDigit:true});
+  if(type==='rating')Object.assign(q,{scale:'stars5'});
+  if(type==='file')Object.assign(q,{accept:'pdf,png,jpg,docx,xlsx',maxSizeMB:10,maxFiles:1});
+  return q;
+}
+function newForm(tpl){
+  const f={id:uid(),name:'',desc:'',color:'#2563eb',banner:'',questions:[],published:false,createdAt:Date.now(),
+    settings:{status:'open',openAt:'',closeAt:'',timeLimit:null,maxResponses:null,thanks:'תודה רבה! התשובה שלך נשמרה בהצלחה.'}};
+  if(tpl==='feedback'){f.name='טופס משוב על שירות';f.desc='נשמח לשמוע את דעתך — המשוב לוקח כדקה.';
+    f.questions=[Object.assign(newQ('rating'),{title:'עד כמה היית מרוצה מהשירות?',required:true,scale:'stars5'}),
+      Object.assign(newQ('choice'),{title:'מה הערוץ שבו פנית אלינו?',options:['טלפון','אימייל','צ׳אט','פגישה'],allowOther:true}),
+      Object.assign(newQ('text'),{title:'מה נוכל לשפר?',long:true,maxLen:500})];}
+  if(tpl==='event'){f.name='הרשמה לאירוע';f.color='#7c3aed';f.desc='אנא מלאו את הפרטים להשלמת ההרשמה.';
+    f.questions=[Object.assign(newQ('text'),{title:'שם מלא',required:true,maxLen:60}),
+      Object.assign(newQ('number'),{title:'מספר משתתפים',required:true,min:1,max:10}),
+      Object.assign(newQ('date'),{title:'תאריך מועדף',required:true}),
+      Object.assign(newQ('file'),{title:'אישור תשלום (אופציונלי)',accept:'pdf,png,jpg',maxSizeMB:5,maxFiles:2})];}
+  if(tpl==='survey'){f.name='שאלון שביעות רצון עובדים';f.color='#0d9488';
+    f.questions=[Object.assign(newQ('rating'),{title:'אני מרגיש/ה שיש לי את הכלים לבצע את העבודה',required:true,scale:'likert'}),
+      Object.assign(newQ('rating'),{title:'דרג/י את האיזון בין עבודה לחיים פרטיים (1–10)',scale:'stars10'}),
+      Object.assign(newQ('text'),{title:'הערות נוספות',long:true})];}
+  return f;
+}
+/* זריעת דמו בהרצה ראשונה */
+if(!localStorage.getItem(KF)){
+  const d=newForm('feedback');d.published=true;
+  db.setForms([d]);
+  const rs=[[5,'טלפון','זמני ההמתנה קצת ארוכים'],[4,'צ׳אט','שירות מעולה'],[5,'אימייל','הכול היה מהיר'],[3,'טלפון','חסר מעקב אחרי הפנייה']]
+    .map((v,i)=>({id:uid(),formId:d.id,at:Date.now()-i*36e5,dur:42+i*7,
+      answers:{[d.questions[0].id]:v[0],[d.questions[1].id]:v[1],[d.questions[2].id]:v[2]}}));
+  db.setRes(rs);
+}
+
+/* ===================== מצב ומנתב ===================== */
+let S={tab:1,device:'desktop',ans:{},errs:{},sent:false,respIdx:0,timeLeft:null,timer:null,locked:false};
+function go(h){location.hash=h}
+function clearTimer(){if(S.timer)clearInterval(S.timer);S.timer=null}
+function route(){
+  clearTimer();
+  const p=location.hash.replace(/^#\/?/,'').split('/').filter(Boolean);
+  if(p[0]==='f')   return viewPublic(p[1]);
+  if(p[0]==='edit')return viewEditor(p[1]);
+  if(p[0]==='res') return viewResults(p[1]);
+  return viewHome();
+}
+addEventListener('hashchange',()=>{S={...S,ans:{},errs:{},sent:false,locked:false,tab:1};route()});
+
+const shell=(inner,bare)=>`
+${bare?'':`<header class="top"><div class="wrap">
+  <button class="hamburger" id="menuBtn" aria-label="תפריט" aria-expanded="false"><span></span><span></span><span></span></button>
+  <div class="grow"></div>
+  <button class="logo" data-act="home">Formify<span>·</span></button>
+</div></header>`}
+<main id="main" class="wrap">${inner}</main>`;
+function renderSidebar(){
+  if(!$('#sidebar')){
+    const d=document.createElement('div');d.id='sidebar';d.className='sidebar';
+    d.innerHTML=`<div class="sidebar-head"><h2>תפריט</h2></div>
+      <div class="sidebar-body">
+        <button data-act="home">📋 הטפסים שלי</button>
+        <button class="pri" data-act="new">+ טופס חדש</button>
+      </div>
+      <div class="sidebar-foot">Formify · פלטפורמת טפסים</div>`;
+    document.body.appendChild(d);
+    const ov=document.createElement('div');ov.id='overlay';ov.className='overlay';
+    ov.addEventListener('click',toggleMenu);document.body.appendChild(ov);
+  }
+}
+function toggleMenu(){const s=$('#sidebar'),o=$('#overlay');if(!s)return;s.classList.toggle('open');o.classList.toggle('show')}
+
+/* ===================== מסך הבית ===================== */
+function viewHome(){
+  const fs=db.forms().sort((a,b)=>b.createdAt-a.createdAt);
+  const link=f=>location.origin+location.pathname+'#/f/'+f.id;
+  const rows=fs.map((f,i)=>{
+    const n=resOf(f.id).length;
+    const st=!f.published?'טיוטה':isOpen(f)?'פתוח':'סגור';
+    const stc=!f.published?'chip draft':isOpen(f)?'chip on':'chip off';
+    const open=f.settings.openAt?fmt(f.settings.openAt):'—';
+    const close=f.settings.closeAt?fmt(f.settings.closeAt):'—';
+    return `<tr>
+      <td>${i+1}</td>
+      <td><b>${esc(f.name||'טופס ללא שם')}</b></td>
+      <td>${fmt(f.createdAt)}</td>
+      <td>${open}</td>
+      <td>${close}</td>
+      <td><span class="${stc}">${st}</span></td>
+      <td><a href="${esc(link(f))}" target="_blank" rel="noopener" class="hint" style="word-break:break-all;font-size:.8rem">${esc(link(f))}</a></td>
+      <td style="white-space:nowrap">
+        <button class="btn sm pri" data-act="edit" data-id="${f.id}">עריכה</button>
+        <button class="btn sm" data-act="res" data-id="${f.id}">תשובות (${n})</button>
+        <button class="btn sm" data-act="dup" data-id="${f.id}">שכפול</button>
+        <button class="btn sm dng" data-act="del" data-id="${f.id}">מחיקה</button>
+      </td>
+    </tr>`;
+  }).join('');
+  const table=fs.length?`<div class="card" style="overflow:auto"><table class="ftable">
+    <thead><tr>
+      <th style="width:50px">#</th>
+      <th>שם הטופס</th>
+      <th>נוצר</th>
+      <th>נפתח</th>
+      <th>נסגר</th>
+      <th>סטטוס</th>
+      <th>קישור</th>
+      <th>פעולות</th>
+    </tr></thead><tbody>${rows}</tbody>
+  </table></div>`:'<div class="empty">עדיין אין טפסים. בחרו תבנית כדי להתחיל.</div>';
+  $('#app').innerHTML=shell(`
+    <h1>הטפסים שלי</h1>
+    <p class="hint">בניית טופס, איסוף תשובות וניתוח נתונים — בעברית מלאה.</p>
+    <div class="card"><h2>התחלה מהירה מתבנית</h2><div class="row">
+      <button class="btn pri" data-act="new" data-tpl="">טופס ריק</button>
+      <button class="btn" data-act="new" data-tpl="feedback">משוב על שירות</button>
+      <button class="btn" data-act="new" data-tpl="event">הרשמה לאירוע</button>
+      <button class="btn" data-act="new" data-tpl="survey">שביעות רצון עובדים</button>
+    </div></div>
+    ${table}`);
+}
+
+/* ===================== עורך ===================== */
+function viewEditor(id){
+  const f=getForm(id); if(!f)return go('/');
+  const tabs=['הגדרות בסיס','בניית שאלות','עיצוב ומיתוג','הפצה והגדרות מענה']
+    .map((t,i)=>`<button class="tab" data-act="tab" data-n="${i+1}" aria-current="${S.tab===i+1}">${i+1}. ${t}</button>`).join('');
+  const body=[stepBasic,stepBuild,stepDesign,stepShare][S.tab-1](f);
+  $('#app').innerHTML=shell(`
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+      <h1>${esc(f.name||'טופס ללא שם')}</h1>
+      <div>${f.published?`<button class="btn" data-act="res" data-id="${f.id}">צפייה בתשובות</button>`:''}</div>
+    </div>
+    <div class="tabs" role="tablist">${tabs}</div>
+    <div id="pane">${body}</div>
+    <div class="row" style="margin:18px 0">
+      ${S.tab>1?'<button class="btn" data-act="tab" data-n="'+(S.tab-1)+'">← שלב קודם</button>':''}
+      ${S.tab<4?'<button class="btn pri" data-act="next" data-id="'+f.id+'">שלב הבא →</button>'
+               :'<button class="btn pri" data-act="publish" data-id="'+f.id+'">פרסום הטופס ויצירת קישור</button>'}
+    </div>`);
+  if(S.tab===2)wireDrag(f);
+}
+function stepBasic(f){return `<div class="card">
+  <label for="fname">שם הטופס <span class="req">*</span> <span class="hint">(עד 100 תווים)</span></label>
+  <input id="fname" type="text" maxlength="100" data-bind="name" value="${esc(f.name)}" aria-required="true">
+  <p class="hint" id="cnt">${(f.name||'').length}/100</p>
+  <label for="fdesc" style="margin-top:10px">תיאור והנחיות לממלא <span class="hint">(רשות)</span></label>
+  <textarea id="fdesc" data-bind="desc">${esc(f.desc)}</textarea>
+  <p class="notice" style="margin-top:12px">התיאור מוצג בראש הטופס לפני השאלה הראשונה. שורות חדשות נשמרות.</p>
+</div>`}
+function stepBuild(f){
+  const adders=Object.entries(QT).map(([k,v])=>`<button class="btn" data-act="addq" data-t="${k}">+ ${v}</button>`).join('');
+  return `<div class="card"><h2>הוספת שאלה</h2><div class="row">${adders}</div></div>
+  <div id="qlist">${f.questions.map((q,i)=>qEditor(q,i,f.questions.length)).join('')||'<div class="empty">אין שאלות עדיין — הוסיפו שאלה ראשונה.</div>'}</div>`;
+}
+function qEditor(q,i,n){
+  const t=`data-q="${q.id}"`;
+  let body='';
+  if(q.type==='choice'){
+    body=`<div class="row"><div>
+        <label>סוג בחירה</label>
+        <select ${t} data-field="multi" data-rerender data-bool>
+          <option value="0" ${!q.multi?'selected':''}>בחירה אחת (Radio)</option>
+          <option value="1" ${q.multi?'selected':''}>בחירה מרובה (Checkbox)</option></select>
+      </div></div>
+      <label style="margin-top:10px">אפשרויות</label>
+      ${q.options.map((o,oi)=>`<div class="opt">
+          <input type="text" ${t} data-opt="${oi}" value="${esc(o)}" aria-label="אפשרות ${oi+1}">
+          <button class="btn sm dng" data-act="delopt" data-q="${q.id}" data-i="${oi}" aria-label="מחיקת אפשרות">✕</button></div>`).join('')}
+      <button class="btn sm" data-act="addopt" data-q="${q.id}">+ הוספת אפשרות</button>
+      <label class="chk" style="margin-top:10px"><input type="checkbox" ${t} data-field="allowOther" ${q.allowOther?'checked':''}>הוספת אפשרות "אחר" עם טקסט חופשי</label>`;
+  }
+  if(q.type==='text'){
+    body=`<div class="row">
+      <div><label>אורך</label><select ${t} data-field="long" data-rerender data-bool>
+        <option value="0" ${!q.long?'selected':''}>שורה אחת</option><option value="1" ${q.long?'selected':''}>פסקה</option></select></div>
+      <div><label>מינימום תווים</label><input type="number" min="0" ${t} data-field="minLen" data-num value="${q.minLen??''}"></div>
+      <div><label>מקסימום תווים</label><input type="number" min="1" ${t} data-field="maxLen" data-num value="${q.maxLen??''}"></div></div>`;
+  }
+  if(q.type==='number'){
+    const looksLen=(q.min!=null||q.max!=null)&&q.minDigits==null&&q.maxDigits==null;
+    body=`<div class="row">
+      <div><label>ערך מינימלי <span class="hint">(גודל המספר)</span></label><input type="number" ${t} data-field="min" data-num value="${q.min??''}"></div>
+      <div><label>ערך מקסימלי <span class="hint">(גודל המספר)</span></label><input type="number" ${t} data-field="max" data-num value="${q.max??''}"></div></div>
+      <div class="row" style="margin-top:10px">
+      <div><label>מינימום ספרות <span class="hint">(אורך הקלט)</span></label><input type="number" min="1" ${t} data-field="minDigits" data-num value="${q.minDigits??''}"></div>
+      <div><label>מקסימום ספרות <span class="hint">(אורך הקלט)</span></label><input type="number" min="1" ${t} data-field="maxDigits" data-num value="${q.maxDigits??''}"></div></div>
+      <p class="hint"><b>ערך</b> = כמה גדול המספר (למשל: מספר משתתפים עד 10). <b>ספרות</b> = כמה ספרות מותר להקליד (למשל: ת״ז, טלפון, מספר חשבון). לזיהוי מספרי — מלאו ספרות בלבד והשאירו את שדות הערך ריקים.</p>
+      ${looksLen?`<div class="notice" style="margin-top:8px">בשאלה זו הוגדרה מגבלת <b>ערך</b>${q.max!=null?` — המספר עצמו לא יעלה על ${q.max}`:''}, ולא מגבלת אורך. אם הכוונה הייתה להגביל את מספר הספרות:
+        <div><button class="btn sm" style="margin-top:6px" data-act="tolen" data-q="${q.id}">המרה למגבלת ספרות</button></div></div>`:''}`;
+  }
+  if(q.type==='id'){
+    body=`<label class="chk"><input type="checkbox" ${t} data-field="checkDigit" ${q.checkDigit?'checked':''}>בדיקת תקינות של ספרת הביקורת (ת״ז ישראלית)</label>
+      <p class="hint">הקלט מוגבל ל-9 ספרות, אפסים מובילים נשמרים, והתשובה נשמרת כטקסט.</p>`;
+  }
+  if(q.type==='rating'){
+    body=`<label>סולם</label><select ${t} data-field="scale" data-rerender>
+      <option value="stars5" ${q.scale==='stars5'?'selected':''}>כוכבים 1–5</option>
+      <option value="stars10" ${q.scale==='stars10'?'selected':''}>כוכבים 1–10</option>
+      <option value="likert" ${q.scale==='likert'?'selected':''}>סולם הסכמה (ליקרט 1–5)</option></select>`;
+  }
+  if(q.type==='file'){
+    body=`<div class="row">
+      <div><label>סוגי קבצים מותרים</label><input type="text" ${t} data-field="accept" value="${esc(q.accept)}" placeholder="pdf,png,jpg"></div>
+      <div><label>גודל מרבי (MB)</label><input type="number" min="1" ${t} data-field="maxSizeMB" data-num value="${q.maxSizeMB??''}"></div>
+      <div><label>כמות קבצים מרבית</label><input type="number" min="1" ${t} data-field="maxFiles" data-num value="${q.maxFiles??''}"></div></div>`;
+  }
+  return `<div class="qcard" draggable="true" data-qid="${q.id}">
+    <div class="qhead">
+      <span class="handle" aria-hidden="true">⠿</span>
+      <span class="qtype">${QT[q.type]}</span>
+      <span class="hint">שאלה ${i+1}</span>
+      <div class="grow"></div>
+      <button class="btn sm" data-act="mv" data-q="${q.id}" data-d="-1" ${i===0?'disabled':''} aria-label="העלאה למעלה">↑</button>
+      <button class="btn sm" data-act="mv" data-q="${q.id}" data-d="1" ${i===n-1?'disabled':''} aria-label="הורדה למטה">↓</button>
+      <button class="btn sm" data-act="dupq" data-q="${q.id}">שכפול</button>
+      <button class="btn sm dng" data-act="delq" data-q="${q.id}">מחיקה</button>
+    </div>
+    <label>נוסח השאלה</label>
+    <input type="text" ${t} data-field="title" value="${esc(q.title)}" placeholder="לדוגמה: עד כמה היית מרוצה?">
+    ${body}
+    <label class="chk" style="margin-top:12px"><input type="checkbox" ${t} data-field="required" ${q.required?'checked':''}>שאלת חובה</label>
+  </div>`;
+}
+function stepDesign(f){
+  const sw=PAL.map(c=>`<button class="sw" style="background:${c}" data-act="color" data-c="${c}" aria-pressed="${f.color===c}" aria-label="צבע ${c}"></button>`).join('');
+  const grads=['linear-gradient(135deg,#2563eb,#38bdf8)','linear-gradient(135deg,#7c3aed,#ec4899)','linear-gradient(135deg,#0d9488,#a3e635)','linear-gradient(135deg,#f97316,#facc15)'];
+  return `<div class="card"><h2>ערכת נושא וצבעים</h2>
+    <label>צבע שולט</label><div class="swatches">${sw}</div>
+    <label style="margin-top:12px" for="cc">צבע מותאם אישית</label>
+    <input id="cc" type="color" value="${f.color}" data-bind="color" data-rerender style="width:64px;height:38px;padding:2px">
+    <h3 style="margin-top:16px">באנר ראשי</h3>
+    <div class="row">${grads.map(g=>`<button class="btn" data-act="banner" data-b="${g}" style="background:${g};color:#fff;border:0">גלריה</button>`).join('')}
+      <button class="btn" data-act="banner" data-b="">ללא באנר</button></div>
+    <label style="margin-top:10px" for="up">העלאת תמונה משלך <span class="hint">(עד 400KB)</span></label>
+    <input id="up" type="file" accept="image/*" data-act="upbanner">
+  </div>
+  <div class="card"><h2>תצוגה מקדימה</h2>
+    <div class="row" style="margin-bottom:12px">
+      <button class="btn ${S.device==='desktop'?'pri':''}" data-act="dev" data-d="desktop">מחשב</button>
+      <button class="btn ${S.device==='mobile'?'pri':''}" data-act="dev" data-d="mobile">טלפון נייד</button></div>
+    <div class="device ${S.device}">${face(f,'preview')}</div>
+  </div>`;
+}
+function stepShare(f){
+  const link=location.origin+location.pathname+'#/f/'+f.id, s=f.settings;
+  return `<div class="card"><h2>קישור לשיתוף</h2>
+    ${f.published?`<div class="row"><input type="text" id="lnk" readonly value="${esc(link)}" aria-label="קישור הטופס">
+      <button class="btn pri" data-act="copy" data-l="${esc(link)}">העתקת קישור</button>
+      <button class="btn" data-act="openf" data-id="${f.id}">פתיחת הטופס</button></div>`
+    :'<p class="notice">הטופס עדיין לא פורסם. לחצו על "פרסום הטופס" בתחתית העמוד כדי לייצר קישור ייחודי.</p>'}
+  </div>
+  <div class="card"><h2>בקרות מענה</h2>
+    <div class="row">
+      <div><label for="o1">תאריך ושעת פתיחה</label><input id="o1" type="datetime-local" data-bind="settings.openAt" value="${esc(s.openAt)}"></div>
+      <div><label for="o2">תאריך ושעת סגירה</label><input id="o2" type="datetime-local" data-bind="settings.closeAt" value="${esc(s.closeAt)}"></div>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <div><label for="o3">הגבלת זמן למילוי (דקות)</label><input id="o3" type="number" min="1" data-bind="settings.timeLimit" data-num value="${s.timeLimit??''}"></div>
+      <div><label for="o4">מכסת משיבים מרבית</label><input id="o4" type="number" min="1" data-bind="settings.maxResponses" data-num value="${s.maxResponses??''}"></div>
+      <div><label for="o5">סטטוס ידני</label><select id="o5" data-bind="settings.status" data-rerender>
+        <option value="open" ${s.status==='open'?'selected':''}>פתוח למענה</option>
+        <option value="closed" ${s.status==='closed'?'selected':''}>סגור</option></select></div>
+    </div>
+    <label style="margin-top:10px" for="o6">הודעת תודה מותאמת אישית</label>
+    <textarea id="o6" data-bind="settings.thanks">${esc(s.thanks)}</textarea>
+    <p class="hint">מצב נוכחי: ${isOpen(f)?'הטופס פתוח ומקבל תשובות.':'הטופס סגור — משיבים יראו הודעת סגירה.'}</p>
+  </div>`;
+}
+
+/* ===================== פני הטופס (תצוגה ומענה) ===================== */
+function isOpen(f){
+  const s=f.settings, now=Date.now();
+  if(!f.published||s.status==='closed')return false;
+  if(s.openAt&&now<new Date(s.openAt).getTime())return false;
+  if(s.closeAt&&now>new Date(s.closeAt).getTime())return false;
+  if(s.maxResponses&&resOf(f.id).length>=s.maxResponses)return false;
+  return true;
+}
+function face(f,mode){
+  const live=mode==='live', dis=live&&S.locked?'disabled':'';
+  const qs=f.questions.map((q,i)=>{
+    const id='q_'+q.id, v=S.ans[q.id], e=S.errs[q.id];
+    let ctl='';
+    if(q.type==='choice'){
+      ctl=q.options.map((o,oi)=>`<label class="chk" style="font-weight:400">
+        <input type="${q.multi?'checkbox':'radio'}" name="${id}" value="${esc(o)}" data-ans="${q.id}" ${dis}
+          ${q.multi?(Array.isArray(v)&&v.includes(o)?'checked':''):(v===o?'checked':'')}>${esc(o)}</label>`).join('');
+      if(q.allowOther)ctl+=`<label class="chk" style="font-weight:400"><input type="${q.multi?'checkbox':'radio'}" name="${id}" value="__other" data-ans="${q.id}" ${dis}>אחר:</label>
+        <input type="text" data-other="${q.id}" placeholder="פרט/י" ${dis}>`;
+    }
+    if(q.type==='text')ctl=q.long
+      ? `<textarea id="${id}" data-ans="${q.id}" ${q.maxLen?`maxlength="${q.maxLen}"`:''} ${dis}>${esc(v||'')}</textarea>`
+      : `<input id="${id}" type="text" data-ans="${q.id}" ${q.maxLen?`maxlength="${q.maxLen}"`:''} value="${esc(v||'')}" ${dis}>`;
+    if(q.type==='number'){
+      const lim=[];
+      if(q.min!=null||q.max!=null)lim.push(q.min!=null&&q.max!=null?`ערך בין ${q.min} ל-${q.max}`:(q.min!=null?`ערך מינימלי ${q.min}`:`ערך מקסימלי ${q.max}`));
+      if(q.minDigits||q.maxDigits)lim.push(q.minDigits&&q.maxDigits?(q.minDigits===q.maxDigits?`${q.maxDigits} ספרות בדיוק`:`${q.minDigits}–${q.maxDigits} ספרות`):(q.minDigits?`לפחות ${q.minDigits} ספרות`:`עד ${q.maxDigits} ספרות`));
+      ctl=`<input id="${id}" type="text" inputmode="numeric" autocomplete="off" data-ans="${q.id}" data-numans ${q.maxDigits?`maxlength="${q.maxDigits}"`:''} value="${esc(v??'')}" ${dis}>
+        ${lim.length?`<p class="hint">${lim.join(' · ')}</p>`:''}`;
+    }
+    if(q.type==='id')ctl=`<input id="${id}" type="text" inputmode="numeric" autocomplete="off" data-ans="${q.id}" data-idans maxlength="9" value="${esc(v??'')}" ${dis}>
+      <p class="hint">9 ספרות, כולל ספרת ביקורת</p>`;
+    if(q.type==='date')ctl=`<input id="${id}" type="date" data-ans="${q.id}" value="${esc(v||'')}" ${dis}>`;
+    if(q.type==='rating'){
+      if(q.scale==='likert')ctl=`<div class="likert">${LIKERT.map((l,li)=>`<button type="button" data-rate="${q.id}" data-v="${li+1}" aria-pressed="${v===li+1}" ${dis}>${l}</button>`).join('')}</div>`;
+      else{const n=q.scale==='stars10'?10:5;
+        ctl=`<div class="stars" role="group" aria-label="דירוג מתוך ${n}">${Array.from({length:n},(_,k)=>
+          `<button type="button" class="star ${v>=k+1?'on':''}" data-rate="${q.id}" data-v="${k+1}" aria-label="${k+1}" ${dis}>★</button>`).join('')}</div>
+          <p class="hint">${v?`נבחר: ${v} מתוך ${n}`:'טרם נבחר דירוג'}</p>`;}
+    }
+    if(q.type==='file'){
+      const names=Array.isArray(v)?v.map(x=>esc(x.name)).join(', '):'';
+      ctl=`<input id="${id}" type="file" data-ans="${q.id}" data-file ${q.maxFiles>1?'multiple':''} accept="${q.accept.split(',').map(x=>'.'+x.trim()).join(',')}" ${dis}>
+        <p class="hint">סוגים: ${esc(q.accept)} · עד ${q.maxSizeMB}MB לקובץ · עד ${q.maxFiles} קבצים</p>${names?`<p class="hint">נבחרו: ${names}</p>`:''}`;
+    }
+    return `<div class="fq"><label for="${id}">${i+1}. ${esc(q.title||'(שאלה ללא נוסח)')} ${q.required?'<span class="req" aria-hidden="true">*</span><span class="skip">חובה</span>':''}</label>
+      ${ctl}${e?`<p class="err" role="alert">${esc(e)}</p>`:''}</div>`;
+  }).join('');
+  const banner=f.banner?`<div class="banner" style="background:${f.banner.startsWith('data:')?`url('${f.banner}')`:f.banner}"></div>`:'<div class="banner"></div>';
+  return `<div class="face" style="--fp:${f.color}">${banner}<div class="body">
+    <h2>${esc(f.name||'טופס ללא שם')}</h2>
+    ${f.desc?`<p style="white-space:pre-wrap">${esc(f.desc)}</p>`:''}
+    ${qs||'<p class="hint">לא הוגדרו שאלות.</p>'}
+    ${live?`<button class="btn pri" style="width:100%;margin-top:14px" data-act="submit" data-id="${f.id}" ${dis}>שליחת הטופס</button>`
+          :'<button class="btn pri" style="width:100%;margin-top:14px" disabled>שליחת הטופס (תצוגה מקדימה)</button>'}
+  </div></div>`;
+}
+function viewPublic(id){
+  const f=getForm(id);
+  if(!f)return $('#app').innerHTML=shell('<div class="empty">הטופס לא נמצא.</div>',true);
+  if(S.sent)return $('#app').innerHTML=shell(`<div class="card" style="text-align:center">
+      <h1 style="color:${f.color}">✓ נשלח</h1><p style="white-space:pre-wrap">${esc(f.settings.thanks)}</p></div>`,true);
+  if(!isOpen(f))return $('#app').innerHTML=shell(`<div class="card" style="text-align:center"><h1>הטופס סגור</h1>
+      <p class="hint">${f.settings.maxResponses&&resOf(f.id).length>=f.settings.maxResponses?'מכסת המשיבים מולאה.':'הטופס אינו פתוח למענה בשלב זה.'}</p></div>`,true);
+  const t=f.settings.timeLimit;
+  if(t&&S.timeLeft===null)S.timeLeft=t*60;
+  $('#app').innerHTML=shell(`${t?`<div class="timer" id="tm" role="timer">נותרו ${mmss(S.timeLeft)} למילוי</div>`:''}
+    <div class="device ${S.device==='mobile'?'mobile':''}" style="max-width:680px">${face(f,'live')}</div>
+    <p class="hint" style="text-align:center">מופעל על ידי Formify</p>`,true);
+  if(t&&!S.timer){S.startedAt=Date.now();
+    S.timer=setInterval(()=>{S.timeLeft--;const el=$('#tm');
+      if(S.timeLeft<=0){clearTimer();S.locked=true;route();if($('#tm'))$('#tm').textContent='הזמן תם — לא ניתן להמשיך במילוי';}
+      else if(el)el.textContent='נותרו '+mmss(S.timeLeft)+' למילוי';},1000);}
+}
+const mmss=s=>String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
+
+function validIsraeliId(s){
+  const d=String(s).padStart(9,'0');let sum=0;
+  for(let i=0;i<9;i++){let x=+d[i]*((i%2)+1);if(x>9)x-=9;sum+=x}
+  return sum%10===0;
+}
+function validate(f){
+  const e={};
+  f.questions.forEach(q=>{
+    const v=S.ans[q.id];
+    const empty=v===undefined||v===null||v===''||(Array.isArray(v)&&!v.length);
+    if(q.required&&empty){e[q.id]='שדה חובה — נא למלא';return}
+    if(empty)return;
+    if(q.type==='text'){
+      if(q.minLen&&String(v).length<q.minLen)e[q.id]=`נדרשים לפחות ${q.minLen} תווים`;
+      if(q.maxLen&&String(v).length>q.maxLen)e[q.id]=`עד ${q.maxLen} תווים`;
+    }
+    if(q.type==='number'){
+      const raw=String(v).trim(), digits=raw.replace(/\D/g,'').length, n=Number(raw);
+      if(!/^-?\d+(\.\d+)?$/.test(raw))e[q.id]='נא להזין מספר תקין (ספרות בלבד)';
+      else if(q.minDigits&&digits<q.minDigits)e[q.id]=`נדרשות לפחות ${q.minDigits} ספרות — הוקלדו ${digits}`;
+      else if(q.maxDigits&&digits>q.maxDigits)e[q.id]=`ניתן להקליד עד ${q.maxDigits} ספרות — הוקלדו ${digits}`;
+      else if(q.min!=null&&n<q.min)e[q.id]=`הערך חייב להיות ${q.min} או יותר`;
+      else if(q.max!=null&&n>q.max)e[q.id]=`הערך חייב להיות ${q.max} או פחות`;
+    }
+    if(q.type==='id'){
+      const raw=String(v).replace(/\D/g,'');
+      if(raw.length!==9)e[q.id]='תעודת זהות חייבת להכיל 9 ספרות (כולל אפסים מובילים)';
+      else if(q.checkDigit&&!validIsraeliId(raw))e[q.id]='מספר תעודת הזהות אינו תקין — נא לבדוק את הספרות';
+    }
+    if(q.type==='file'){
+      const ok=q.accept.split(',').map(x=>x.trim().toLowerCase());
+      if(v.length>q.maxFiles)e[q.id]=`ניתן להעלות עד ${q.maxFiles} קבצים`;
+      v.forEach(x=>{
+        const ext=(x.name.split('.').pop()||'').toLowerCase();
+        if(!ok.includes(ext))e[q.id]=`סוג הקובץ ${ext} אינו מותר`;
+        if(x.size>q.maxSizeMB*1048576)e[q.id]=`הקובץ ${x.name} גדול מ-${q.maxSizeMB}MB`;
+      });
+    }
+  });
+  return e;
+}
+
+/* ===================== תשובות וניתוח ===================== */
+function viewResults(id){
+  const f=getForm(id); if(!f)return go('/');
+  const rs=resOf(id).sort((a,b)=>b.at-a.at);
+  const avgDur=rs.length?Math.round(rs.reduce((s,r)=>s+(r.dur||0),0)/rs.length):0;
+  const analytics=f.questions.map(q=>qAnalytics(q,rs)).join('');
+  const r=rs[S.respIdx];
+  $('#app').innerHTML=shell(`
+    <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">
+      <h1>תשובות · ${esc(f.name)}</h1>
+      <div class="row">
+        <button class="btn" data-act="edit" data-id="${f.id}">חזרה לעריכה</button>
+        <button class="btn pri" data-act="csv" data-id="${f.id}">ייצוא ל-Excel / CSV</button>
+        <button class="btn" data-act="zip">הורדת קבצים (ZIP)</button>
+      </div>
+    </div>
+    <div class="kpi" style="margin:14px 0">
+      <div><span class="hint">סה״כ תשובות</span><b>${rs.length}</b></div>
+      <div><span class="hint">מכסה</span><b>${f.settings.maxResponses?rs.length+'/'+f.settings.maxResponses:'∞'}</b></div>
+      <div><span class="hint">זמן מילוי ממוצע</span><b>${avgDur?mmss(avgDur):'—'}</b></div>
+      <div><span class="hint">סטטוס</span><b style="font-size:1.1rem">${isOpen(f)?'פתוח':'סגור'}</b></div>
+    </div>
+    <div class="card"><h2>סיכום לפי שאלה</h2>${rs.length?analytics:'<div class="empty">אין עדיין תשובות.</div>'}</div>
+    <div class="card"><h2>תשובות אינדיבידואליות</h2>
+      ${rs.length?`<div class="row" style="align-items:center">
+          <button class="btn sm" data-act="rnav" data-d="-1" ${S.respIdx===0?'disabled':''}>→ קודם</button>
+          <span style="text-align:center">משיב ${S.respIdx+1} מתוך ${rs.length} · ${fmt(r.at)}</span>
+          <button class="btn sm" data-act="rnav" data-d="1" ${S.respIdx>=rs.length-1?'disabled':''}>הבא ←</button></div>
+        <table style="margin-top:10px"><thead><tr><th>שאלה</th><th>תשובה</th></tr></thead><tbody>
+        ${f.questions.map(q=>`<tr><td>${esc(q.title||'—')}</td><td>${esc(cellText(r.answers[q.id]))}</td></tr>`).join('')}
+        </tbody></table>`:'<div class="empty">אין עדיין תשובות.</div>'}
+    </div>`);
+}
+const cellText=v=>Array.isArray(v)?v.map(x=>x&&x.name?x.name:x).join(' | '):(v===undefined||v===null||v===''?'—':String(v));
+function qAnalytics(q,rs){
+  const vals=rs.map(r=>r.answers[q.id]).filter(v=>v!==undefined&&v!==null&&v!=='');
+  const head=`<h3 style="margin-top:18px">${esc(q.title||'(ללא נוסח)')} <span class="hint">· ${vals.length} מענים</span></h3>`;
+  if(!vals.length)return head+'<p class="hint">אין מענים לשאלה זו.</p>';
+  if(q.type==='choice'){
+    const flat=vals.flatMap(v=>Array.isArray(v)?v:[v]);
+    const labels=[...q.options,...(q.allowOther?['אחר']:[])];
+    const counts=labels.map(o=>flat.filter(x=>x===o||(o==='אחר'&&!q.options.includes(x))).length);
+    const tot=counts.reduce((a,b)=>a+b,0)||1;let acc=0;
+    const stops=counts.map((c,i)=>{const from=acc/tot*100;acc+=c;return `${PAL[i%PAL.length]} ${from.toFixed(1)}% ${(acc/tot*100).toFixed(1)}%`}).join(',');
+    return head+`<div class="row" style="align-items:center">
+      <div class="pie" style="background:conic-gradient(${stops})" role="img" aria-label="דיאגרמת עוגה"></div>
+      <ul class="legend" style="padding:0;flex:2 1 260px">${labels.map((o,i)=>`<li><span class="dot" style="background:${PAL[i%PAL.length]}"></span>
+        <span style="flex:1">${esc(o)}</span><b>${counts[i]}</b><span class="hint">(${Math.round(counts[i]/tot*100)}%)</span></li>`).join('')}</ul></div>`;
+  }
+  if(q.type==='rating'||(q.type==='number'&&!(q.maxDigits>=6))){
+    const nums=vals.map(Number).filter(Number.isFinite);
+    const avg=(nums.reduce((a,b)=>a+b,0)/nums.length);
+    const max=q.type==='rating'?(q.scale==='stars10'?10:5):Math.max(...nums);
+    const dist={};nums.forEach(n=>dist[n]=(dist[n]||0)+1);
+    const keys=Object.keys(dist).sort((a,b)=>a-b);
+    return head+`<p><b>ממוצע: ${avg.toFixed(2)}</b>${q.type==='rating'?' מתוך '+max:''} · מינימום ${Math.min(...nums)} · מקסימום ${Math.max(...nums)}</p>
+      ${keys.map(k=>`<div><span class="hint">${q.scale==='likert'?esc(LIKERT[k-1]||k):k} — ${dist[k]}</span>
+        <div class="bar"><i style="width:${dist[k]/nums.length*100}%"></i></div></div>`).join('')}`;
+  }
+  if(q.type==='file')return head+`<ul>${vals.flatMap(v=>Array.isArray(v)?v:[v]).map(x=>`<li>${esc(x.name||x)}</li>`).join('')}</ul>`;
+  return head+`<ul>${vals.slice(0,20).map(v=>`<li>${esc(v)}</li>`).join('')}</ul>${vals.length>20?`<p class="hint">מוצגות 20 התשובות הראשונות מתוך ${vals.length}.</p>`:''}`;
+}
+function exportCSV(f){
+  const rs=resOf(f.id).sort((a,b)=>a.at-b.at);
+  const head=['#','תאריך שליחה','זמן מילוי',...f.questions.map(q=>q.title||'שאלה')];
+  const cell=s=>`"${String(s).replace(/"/g,'""')}"`;
+  const rows=rs.map((r,i)=>[i+1,fmt(r.at),r.dur?mmss(r.dur):'',...f.questions.map(q=>cellText(r.answers[q.id]))].map(cell).join(','));
+  dl(`${(f.name||'form').replace(/[\\/:*?"<>|]/g,'')}.csv`,'\uFEFF'+[head.map(cell).join(','),...rows].join('\r\n'),'text/csv;charset=utf-8');
+}
+
+/* ===================== קישוריות ===================== */
+function setPath(o,p,v){const k=p.split('.');let t=o;while(k.length>1)t=t[k.shift()];t[k[0]]=v}
+document.addEventListener('input',e=>{
+  const el=e.target, p=el.dataset;
+  const val=el.type==='checkbox'?el.checked
+    : p.bool!==undefined?el.value==='1'
+    : p.num!==undefined?(el.value===''?null:Number(el.value))
+    : el.value;
+  /* --- עריכת טופס --- */
+  const id=(location.hash.split('/')[2]||'');
+  if(p.bind||p.field||p.opt!==undefined){
+    const f=getForm(id); if(!f)return;
+    if(p.bind)setPath(f,p.bind,val);
+    if(p.q){const q=f.questions.find(x=>x.id===p.q);
+      if(p.opt!==undefined)q.options[+p.opt]=el.value; else q[p.field]=val;}
+    saveForm(f);
+    if($('#cnt')&&p.bind==='name')$('#cnt').textContent=(f.name||'').length+'/100';
+    if(p.rerender!==undefined)viewEditor(id);
+    return;
+  }
+  /* --- מענה --- */
+  if(p.ans!==undefined){
+    const q=getForm(location.hash.split('/')[2]).questions.find(x=>x.id===p.ans);
+    if(p.file!==undefined){S.ans[q.id]=[...el.files].map(x=>({name:x.name,size:x.size}))}
+    else if(q.type==='choice'&&q.multi){
+      const box=[...document.querySelectorAll(`[data-ans="${q.id}"]:checked`)].map(x=>x.value);
+      S.ans[q.id]=box.map(v=>v==='__other'?(document.querySelector(`[data-other="${q.id}"]`)?.value||'אחר'):v);
+    } else if(q.type==='choice'){
+      S.ans[q.id]=el.value==='__other'?(document.querySelector(`[data-other="${q.id}"]`)?.value||'אחר'):el.value;
+    } else if(p.numans!==undefined){const c=el.value.replace(/[^\d.-]/g,'');if(c!==el.value)el.value=c;S.ans[q.id]=c===''?null:c}
+    else if(p.idans!==undefined){const c=el.value.replace(/\D/g,'').slice(0,9);if(c!==el.value)el.value=c;S.ans[q.id]=c===''?null:c}
+    else S.ans[q.id]=el.value;
+  }
+  if(p.other!==undefined){const qid=p.other;const sel=document.querySelector(`[data-ans="${qid}"][value="__other"]`);
+    if(sel&&sel.checked)S.ans[qid]=el.value||'אחר';}
+});
+document.addEventListener('keydown',e=>{
+  const ds=e.target.dataset;
+  if((ds.numans!==undefined||ds.idans!==undefined)&&e.key.length===1&&!e.ctrlKey&&!e.metaKey
+     &&!/[0-9]/.test(e.key)&&!(ds.numans!==undefined&&/[.-]/.test(e.key)))e.preventDefault();
+});
+document.addEventListener('click',e=>{
+  const b=e.target.closest('[data-act],[data-rate]'); if(!b)return;
+  const p=b.dataset, id=p.id||location.hash.split('/')[2];
+  if(p.act==='tolen'){const f=getForm(id),q=f.questions.find(x=>x.id===p.q);
+    q.minDigits=q.min??null;q.maxDigits=q.max??null;q.min=null;q.max=null;saveForm(f);viewEditor(id);return toast('הוגדרה מגבלת ספרות')}
+  if(p.rate){S.ans[p.rate]=+p.v;return route()}
+  switch(p.act){
+    case 'home':return go('/');
+    case 'new':{const f=newForm(p.tpl||'');saveForm(f);S.tab=1;return go('/edit/'+f.id)}
+    case 'edit':S.tab=1;return go('/edit/'+id);
+    case 'res':S.respIdx=0;return go('/res/'+id);
+    case 'openf':return go('/f/'+id);
+    case 'dup':{const o=getForm(id);const f=JSON.parse(JSON.stringify(o));
+      f.id=uid();f.name=o.name+' — עותק';f.published=false;f.createdAt=Date.now();
+      f.questions.forEach(q=>q.id=uid());saveForm(f);toast('הטופס שוכפל');return route()}
+    case 'del':if(confirm('למחוק את הטופס וכל תשובותיו?')){db.setForms(db.forms().filter(f=>f.id!==id));
+      db.setRes(db.res().filter(r=>r.formId!==id));toast('נמחק')}return route();
+    case 'tab':S.tab=+p.n;return viewEditor(id);
+    case 'next':S.tab=Math.min(4,S.tab+1);return viewEditor(id);
+    case 'addq':{const f=getForm(id);f.questions.push(newQ(p.t));saveForm(f);return viewEditor(id)}
+    case 'delq':{const f=getForm(id);f.questions=f.questions.filter(q=>q.id!==p.q);saveForm(f);return viewEditor(id)}
+    case 'dupq':{const f=getForm(id);const i=f.questions.findIndex(q=>q.id===p.q);
+      const c=JSON.parse(JSON.stringify(f.questions[i]));c.id=uid();f.questions.splice(i+1,0,c);saveForm(f);return viewEditor(id)}
+    case 'mv':{const f=getForm(id);const i=f.questions.findIndex(q=>q.id===p.q);const j=i+ +p.d;
+      if(j<0||j>=f.questions.length)return;[f.questions[i],f.questions[j]]=[f.questions[j],f.questions[i]];saveForm(f);return viewEditor(id)}
+    case 'addopt':{const f=getForm(id);const q=f.questions.find(x=>x.id===p.q);
+      q.options.push('אפשרות '+(q.options.length+1));saveForm(f);return viewEditor(id)}
+    case 'delopt':{const f=getForm(id);const q=f.questions.find(x=>x.id===p.q);
+      if(q.options.length>1)q.options.splice(+p.i,1);saveForm(f);return viewEditor(id)}
+    case 'color':{const f=getForm(id);f.color=p.c;saveForm(f);return viewEditor(id)}
+    case 'banner':{const f=getForm(id);f.banner=p.b;saveForm(f);return viewEditor(id)}
+    case 'dev':S.device=p.d;return viewEditor(id);
+    case 'publish':{const f=getForm(id);
+      if(!f.name.trim())return toast('חובה להזין שם טופס');
+      if(!f.questions.length)return toast('יש להוסיף לפחות שאלה אחת');
+      f.published=true;saveForm(f);S.tab=4;viewEditor(id);return toast('הטופס פורסם — הקישור נוצר')}
+    case 'copy':navigator.clipboard.writeText(p.l).then(()=>toast('הקישור הועתק'),()=>toast('העתקה נכשלה'));return;
+    case 'csv':return exportCSV(getForm(id));
+    case 'zip':return toast('הורדת קבצים כ-ZIP דורשת שרת — ראו הערות המימוש');
+    case 'rnav':{const n=resOf(id).length;S.respIdx=Math.max(0,Math.min(n-1,S.respIdx+ +p.d));return viewResults(id)}
+    case 'submit':{const f=getForm(id);
+      if(!isOpen(f)||S.locked)return toast('הטופס אינו פתוח למענה');
+      S.errs=validate(f);
+      if(Object.keys(S.errs).length){route();const first=document.querySelector('.err');
+        if(first)first.scrollIntoView({behavior:'smooth',block:'center'});return toast('יש שדות הדורשים תיקון')}
+      const dur=S.startedAt?Math.round((Date.now()-S.startedAt)/1000):null;
+      db.setRes([...db.res(),{id:uid(),formId:f.id,at:Date.now(),dur,answers:{...S.ans}}]);
+      clearTimer();S.sent=true;S.ans={};return route()}
+  }
+});
+document.addEventListener('change',e=>{
+  if(e.target.dataset.act==='upbanner'){
+    const file=e.target.files[0];if(!file)return;
+    if(file.size>400*1024)return toast('התמונה גדולה מ-400KB');
+    const fr=new FileReader();
+    fr.onload=()=>{const id=location.hash.split('/')[2];const f=getForm(id);f.banner=fr.result;saveForm(f);viewEditor(id)};
+    fr.readAsDataURL(file);
+  }
+});
+function wireDrag(f){
+  let src=null;
+  document.querySelectorAll('.qcard').forEach(c=>{
+    c.addEventListener('dragstart',()=>{src=c.dataset.qid;c.classList.add('drag')});
+    c.addEventListener('dragend',()=>c.classList.remove('drag'));
+    c.addEventListener('dragover',ev=>{ev.preventDefault();c.classList.add('over')});
+    c.addEventListener('dragleave',()=>c.classList.remove('over'));
+    c.addEventListener('drop',ev=>{ev.preventDefault();c.classList.remove('over');
+      const dst=c.dataset.qid;if(!src||src===dst)return;
+      const cur=getForm(f.id), i=cur.questions.findIndex(q=>q.id===src), j=cur.questions.findIndex(q=>q.id===dst);
+      const [m]=cur.questions.splice(i,1);cur.questions.splice(j,0,m);saveForm(cur);viewEditor(f.id);});
+  });
+}
+route();
+</script>
+</body>
+</html>
