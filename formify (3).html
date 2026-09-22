@@ -102,7 +102,7 @@ th{background:#f8fafc;font-size:.85rem;color:var(--mut)}
 .sidebar-body button.pri{background:var(--pri);color:#fff}
 .sidebar-body button.pri:hover{background:var(--pri-d)}
 .sidebar-foot{padding:14px;border-top:1px solid var(--line);font-size:.8rem;color:var(--mut);text-align:center}
-.hamburger{width:44px;height:44px;border:1px solid var(--line);background:#fff;border-radius:10px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;z-index:50}
+.hamburger{width:44px;height:44px;border:1px solid var(--line);background:#fff;border-radius:10px;cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:5px;z-index:45}
 .hamburger span{display:block;width:20px;height:2px;background:var(--txt);border-radius:2px;transition:.2s}
 .overlay{position:fixed;inset:0;background:rgba(0,0,0,.25);z-index:35;opacity:0;pointer-events:none;transition:opacity .2s}
 .overlay.show{opacity:1;pointer-events:auto}
@@ -123,17 +123,50 @@ const uid=()=>Math.random().toString(36).slice(2,9);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const PAL=['#2563eb','#0d9488','#7c3aed','#db2777','#ea580c','#65a30d','#0891b2','#dc2626'];
 const KF='formify.forms', KR='formify.responses';
+
+function safeReadJSON(key, fallback) {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch (err) {
+    console.warn('Failed to parse storage', key, err);
+    return fallback;
+  }
+}
+
+function safeWriteJSON(key, value) {
+  try {
+    localStorage.setItem(key, JSON.stringify(value));
+    return true;
+  } catch (err) {
+    console.warn('Failed to save storage', key, err);
+    toast('לא ניתן לשמור את הנתונים במכשיר זה');
+    return false;
+  }
+}
+
 const db={
-  forms:()=>JSON.parse(localStorage.getItem(KF)||'[]'),
-  setForms:f=>localStorage.setItem(KF,JSON.stringify(f)),
-  res:()=>JSON.parse(localStorage.getItem(KR)||'[]'),
-  setRes:r=>localStorage.setItem(KR,JSON.stringify(r))
+  forms:()=>safeReadJSON(KF,[]),
+  setForms:f=>safeWriteJSON(KF,f),
+  res:()=>safeReadJSON(KR,[]),
+  setRes:r=>safeWriteJSON(KR,r)
 };
-const getForm=id=>db.forms().find(f=>f.id===id);
-const saveForm=f=>{const a=db.forms(),i=a.findIndex(x=>x.id===f.id);i<0?a.push(f):a[i]=f;db.setForms(a)};
-const resOf=id=>db.res().filter(r=>r.formId===id);
-function toast(t){const d=document.createElement('div');d.className='toast';d.textContent=t;d.setAttribute('role','status');document.body.appendChild(d);setTimeout(()=>d.remove(),2600)}
-function dl(name,text,mime){const b=new Blob([text],{type:mime});const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=name;a.click();URL.revokeObjectURL(a.href)}
+const getForm=id=>{ const forms=db.forms(); return forms.find(f=>String(f.id)===String(id)) || null; };
+const saveForm=f=>{ const arr=db.forms(); const i=arr.findIndex(x=>String(x.id)===String(f.id)); if(i<0) arr.push(f); else arr[i]=f; return db.setForms(arr); };
+const resOf=id=>db.res().filter(r=>String(r.formId)===String(id));
+const hashId=()=>location.hash.match(/#\/(?:f|edit|res)\/([^/]+)/)?.[1] || '';
+function toast(t){
+  if(!document.body) return;
+  const d=document.createElement('div');
+  d.className='toast'; d.textContent=t; d.setAttribute('role','status');
+  document.body.appendChild(d);
+  setTimeout(()=>d.remove(),2600);
+}
+function dl(name,text,mime){
+  const b=new Blob([text],{type:mime});
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(b); a.download=name; a.click(); URL.revokeObjectURL(a.href);
+}
 const fmt=d=>d?new Date(d).toLocaleString('he-IL',{dateStyle:'short',timeStyle:'short'}):'—';
 
 /* ===================== מודל ===================== */
@@ -167,29 +200,30 @@ function newForm(tpl){
       Object.assign(newQ('text'),{title:'הערות נוספות',long:true})];}
   return f;
 }
-/* זריעת דמו בהרצה ראשונה */
+
 if(!localStorage.getItem(KF)){
-  const d=newForm('feedback');d.published=true;
-  db.setForms([d]);
-  const rs=[[5,'טלפון','זמני ההמתנה קצת ארוכים'],[4,'צ׳אט','שירות מעולה'],[5,'אימייל','הכול היה מהיר'],[3,'טלפון','חסר מעקב אחרי הפנייה']]
-    .map((v,i)=>({id:uid(),formId:d.id,at:Date.now()-i*36e5,dur:42+i*7,
-      answers:{[d.questions[0].id]:v[0],[d.questions[1].id]:v[1],[d.questions[2].id]:v[2]}}));
-  db.setRes(rs);
+  const d=newForm('feedback'); d.published=true;
+  if(safeWriteJSON(KF,[d])){
+    const rs=[[5,'טלפון','זמני ההמתנה קצת ארוכים'],[4,'צ׳אט','שירות מעולה'],[5,'אימייל','הכול היה מהיר'],[3,'טלפון','חסר מעקב אחרי המקרה'],[5,'פגישה','איש צוות היה אדיב']]
+      .map((v,i)=>({id:uid(),formId:d.id,at:Date.now()-i*36e5,dur:42+i*7,
+        answers:{[d.questions[0].id]:v[0],[d.questions[1].id]:v[1],[d.questions[2].id]:v[2]}}));
+    safeWriteJSON(KR,rs);
+  }
 }
 
 /* ===================== מצב ומנתב ===================== */
 let S={tab:1,device:'desktop',ans:{},errs:{},sent:false,respIdx:0,timeLeft:null,timer:null,locked:false};
-function go(h){location.hash=h}
-function clearTimer(){if(S.timer)clearInterval(S.timer);S.timer=null}
+function go(h){ location.hash=h; }
+function clearTimer(){ if(S.timer) clearInterval(S.timer); S.timer=null; }
 function route(){
   clearTimer();
   const p=location.hash.replace(/^#\/?/,'').split('/').filter(Boolean);
-  if(p[0]==='f')   return viewPublic(p[1]);
-  if(p[0]==='edit')return viewEditor(p[1]);
+  if(p[0]==='f') return viewPublic(p[1]);
+  if(p[0]==='edit') return viewEditor(p[1]);
   if(p[0]==='res') return viewResults(p[1]);
   return viewHome();
 }
-addEventListener('hashchange',()=>{S={...S,ans:{},errs:{},sent:false,locked:false,tab:1};route()});
+addEventListener('hashchange',()=>{ S={...S,ans:{},errs:{},sent:false,locked:false,tab:1,respIdx:0,timeLeft:null}; route(); });
 
 const shell=(inner,bare)=>`
 ${bare?'':`<header class="top"><div class="wrap">
@@ -200,7 +234,7 @@ ${bare?'':`<header class="top"><div class="wrap">
 <main id="main" class="wrap">${inner}</main>`;
 function renderSidebar(){
   if(!$('#sidebar')){
-    const d=document.createElement('div');d.id='sidebar';d.className='sidebar';
+    const d=document.createElement('div'); d.id='sidebar'; d.className='sidebar';
     d.innerHTML=`<div class="sidebar-head"><h2>תפריט</h2></div>
       <div class="sidebar-body">
         <button data-act="home">📋 הטפסים שלי</button>
@@ -208,22 +242,22 @@ function renderSidebar(){
       </div>
       <div class="sidebar-foot">Formify · פלטפורמת טפסים</div>`;
     document.body.appendChild(d);
-    const ov=document.createElement('div');ov.id='overlay';ov.className='overlay';
-    ov.addEventListener('click',toggleMenu);document.body.appendChild(ov);
+    const ov=document.createElement('div'); ov.id='overlay'; ov.className='overlay';
+    ov.addEventListener('click',toggleMenu); document.body.appendChild(ov);
   }
 }
-function toggleMenu(){const s=$('#sidebar'),o=$('#overlay');if(!s)return;s.classList.toggle('open');o.classList.toggle('show')}
+function toggleMenu(){ const s=$('#sidebar'), o=$('#overlay'); if(!s) return; s.classList.toggle('open'); o.classList.toggle('show'); }
 
 /* ===================== מסך הבית ===================== */
 function viewHome(){
-  const fs=db.forms().sort((a,b)=>b.createdAt-a.createdAt);
-  const link=f=>location.origin+location.pathname+'#/f/'+f.id;
+  const fs=[...db.forms()].sort((a,b)=>b.createdAt-a.createdAt);
+  const link=f=>`${window.location.origin}${window.location.pathname}#/f/${f.id}`;
   const rows=fs.map((f,i)=>{
     const n=resOf(f.id).length;
     const st=!f.published?'טיוטה':isOpen(f)?'פתוח':'סגור';
     const stc=!f.published?'chip draft':isOpen(f)?'chip on':'chip off';
-    const open=f.settings.openAt?fmt(f.settings.openAt):'—';
-    const close=f.settings.closeAt?fmt(f.settings.closeAt):'—';
+    const open=f.settings?.openAt?fmt(f.settings.openAt):'—';
+    const close=f.settings?.closeAt?fmt(f.settings.closeAt):'—';
     return `<tr>
       <td>${i+1}</td>
       <td><b>${esc(f.name||'טופס ללא שם')}</b></td>
@@ -266,10 +300,10 @@ function viewHome(){
 
 /* ===================== עורך ===================== */
 function viewEditor(id){
-  const f=getForm(id); if(!f)return go('/');
+  const f=getForm(id); if(!f) return go('/');
   const tabs=['הגדרות בסיס','בניית שאלות','עיצוב ומיתוג','הפצה והגדרות מענה']
     .map((t,i)=>`<button class="tab" data-act="tab" data-n="${i+1}" aria-current="${S.tab===i+1}">${i+1}. ${t}</button>`).join('');
-  const body=[stepBasic,stepBuild,stepDesign,stepShare][S.tab-1](f);
+  const body=[stepBasic,stepBuild,stepDesign,stepShare][Math.max(0,Math.min(3,S.tab-1))](f);
   $('#app').innerHTML=shell(`
     <div style="display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
       <h1>${esc(f.name||'טופס ללא שם')}</h1>
@@ -282,16 +316,18 @@ function viewEditor(id){
       ${S.tab<4?'<button class="btn pri" data-act="next" data-id="'+f.id+'">שלב הבא →</button>'
                :'<button class="btn pri" data-act="publish" data-id="'+f.id+'">פרסום הטופס ויצירת קישור</button>'}
     </div>`);
-  if(S.tab===2)wireDrag(f);
+  if(S.tab===2) wireDrag(f);
 }
-function stepBasic(f){return `<div class="card">
-  <label for="fname">שם הטופס <span class="req">*</span> <span class="hint">(עד 100 תווים)</span></label>
-  <input id="fname" type="text" maxlength="100" data-bind="name" value="${esc(f.name)}" aria-required="true">
-  <p class="hint" id="cnt">${(f.name||'').length}/100</p>
-  <label for="fdesc" style="margin-top:10px">תיאור והנחיות לממלא <span class="hint">(רשות)</span></label>
-  <textarea id="fdesc" data-bind="desc">${esc(f.desc)}</textarea>
-  <p class="notice" style="margin-top:12px">התיאור מוצג בראש הטופס לפני השאלה הראשונה. שורות חדשות נשמרות.</p>
-</div>`}
+function stepBasic(f){
+  return `<div class="card">
+    <label for="fname">שם הטופס <span class="req">*</span> <span class="hint">(עד 100 תווים)</span></label>
+    <input id="fname" type="text" maxlength="100" data-bind="name" value="${esc(f.name)}" aria-required="true">
+    <p class="hint" id="cnt">${(f.name||'').length}/100</p>
+    <label for="fdesc" style="margin-top:10px">תיאור והנחיות לממלא <span class="hint">(רשות)</span></label>
+    <textarea id="fdesc" data-bind="desc">${esc(f.desc)}</textarea>
+    <p class="notice" style="margin-top:12px">התיאור מוצג בראש הטופס לפני השאלה הראשונה. שורות חדשות נשמרות.</p>
+  </div>`;
+}
 function stepBuild(f){
   const adders=Object.entries(QT).map(([k,v])=>`<button class="btn" data-act="addq" data-t="${k}">+ ${v}</button>`).join('');
   return `<div class="card"><h2>הוספת שאלה</h2><div class="row">${adders}</div></div>
@@ -329,9 +365,8 @@ function qEditor(q,i,n){
       <div class="row" style="margin-top:10px">
       <div><label>מינימום ספרות <span class="hint">(אורך הקלט)</span></label><input type="number" min="1" ${t} data-field="minDigits" data-num value="${q.minDigits??''}"></div>
       <div><label>מקסימום ספרות <span class="hint">(אורך הקלט)</span></label><input type="number" min="1" ${t} data-field="maxDigits" data-num value="${q.maxDigits??''}"></div></div>
-      <p class="hint"><b>ערך</b> = כמה גדול המספר (למשל: מספר משתתפים עד 10). <b>ספרות</b> = כמה ספרות מותר להקליד (למשל: ת״ז, טלפון, מספר חשבון). לזיהוי מספרי — מלאו ספרות בלבד והשאירו את שדות הערך ריקים.</p>
-      ${looksLen?`<div class="notice" style="margin-top:8px">בשאלה זו הוגדרה מגבלת <b>ערך</b>${q.max!=null?` — המספר עצמו לא יעלה על ${q.max}`:''}, ולא מגבלת אורך. אם הכוונה הייתה להגביל את מספר הספרות:
-        <div><button class="btn sm" style="margin-top:6px" data-act="tolen" data-q="${q.id}">המרה למגבלת ספרות</button></div></div>`:''}`;
+      <p class="hint"><b>ערך</b> = כמה גדול המספר (למשל: מספר משתתפים עד 10). <b>ספרות</b> = כמה ספרות מותר להקליד (למשל: ת״ז, טלפון, קוד סודי).</p>
+      ${looksLen?`<div class="notice" style="margin-top:8px">בשאלה זו הוגדרה מגבלת <b>ערך</b>${q.max!=null?` — המספר עצמו לא יעלה על ${q.max}`:''}, ולא מגבלת ספרות. אם תרצו, אפשר להמיר את זה למספור קלט.<div><button class="btn sm" style="margin-top:6px" data-act="tolen" data-q="${q.id}">המרה למגבלת ספרות</button></div></div>`:''}`;
   }
   if(q.type==='id'){
     body=`<label class="chk"><input type="checkbox" ${t} data-field="checkDigit" ${q.checkDigit?'checked':''}>בדיקת תקינות של ספרת הביקורת (ת״ז ישראלית)</label>
@@ -387,7 +422,7 @@ function stepDesign(f){
   </div>`;
 }
 function stepShare(f){
-  const link=location.origin+location.pathname+'#/f/'+f.id, s=f.settings;
+  const link=`${window.location.origin}${window.location.pathname}#/f/${f.id}`; const s=f.settings || {};
   return `<div class="card"><h2>קישור לשיתוף</h2>
     ${f.published?`<div class="row"><input type="text" id="lnk" readonly value="${esc(link)}" aria-label="קישור הטופס">
       <button class="btn pri" data-act="copy" data-l="${esc(link)}">העתקת קישור</button>
@@ -396,8 +431,8 @@ function stepShare(f){
   </div>
   <div class="card"><h2>בקרות מענה</h2>
     <div class="row">
-      <div><label for="o1">תאריך ושעת פתיחה</label><input id="o1" type="datetime-local" data-bind="settings.openAt" value="${esc(s.openAt)}"></div>
-      <div><label for="o2">תאריך ושעת סגירה</label><input id="o2" type="datetime-local" data-bind="settings.closeAt" value="${esc(s.closeAt)}"></div>
+      <div><label for="o1">תאריך ושעת פתיחה</label><input id="o1" type="datetime-local" data-bind="settings.openAt" value="${esc(s.openAt||'')}"></div>
+      <div><label for="o2">תאריך ושעת סגירה</label><input id="o2" type="datetime-local" data-bind="settings.closeAt" value="${esc(s.closeAt||'')}"></div>
     </div>
     <div class="row" style="margin-top:10px">
       <div><label for="o3">הגבלת זמן למילוי (דקות)</label><input id="o3" type="number" min="1" data-bind="settings.timeLimit" data-num value="${s.timeLimit??''}"></div>
@@ -407,56 +442,60 @@ function stepShare(f){
         <option value="closed" ${s.status==='closed'?'selected':''}>סגור</option></select></div>
     </div>
     <label style="margin-top:10px" for="o6">הודעת תודה מותאמת אישית</label>
-    <textarea id="o6" data-bind="settings.thanks">${esc(s.thanks)}</textarea>
+    <textarea id="o6" data-bind="settings.thanks">${esc(s.thanks||'')}</textarea>
     <p class="hint">מצב נוכחי: ${isOpen(f)?'הטופס פתוח ומקבל תשובות.':'הטופס סגור — משיבים יראו הודעת סגירה.'}</p>
   </div>`;
 }
 
 /* ===================== פני הטופס (תצוגה ומענה) ===================== */
 function isOpen(f){
-  const s=f.settings, now=Date.now();
-  if(!f.published||s.status==='closed')return false;
-  if(s.openAt&&now<new Date(s.openAt).getTime())return false;
-  if(s.closeAt&&now>new Date(s.closeAt).getTime())return false;
-  if(s.maxResponses&&resOf(f.id).length>=s.maxResponses)return false;
+  if(!f) return false;
+  const s=f.settings||{}; const now=Date.now();
+  if(!f.published||s.status==='closed') return false;
+  if(s.openAt && now < new Date(s.openAt).getTime()) return false;
+  if(s.closeAt && now > new Date(s.closeAt).getTime()) return false;
+  if(s.maxResponses && resOf(f.id).length >= s.maxResponses) return false;
   return true;
 }
 function face(f,mode){
   const live=mode==='live', dis=live&&S.locked?'disabled':'';
-  const qs=f.questions.map((q,i)=>{
+  const qs=(f.questions||[]).map((q,i)=>{
     const id='q_'+q.id, v=S.ans[q.id], e=S.errs[q.id];
     let ctl='';
     if(q.type==='choice'){
-      ctl=q.options.map((o,oi)=>`<label class="chk" style="font-weight:400">
+      ctl=(q.options||[]).map((o,oi)=>`<label class="chk" style="font-weight:400">
         <input type="${q.multi?'checkbox':'radio'}" name="${id}" value="${esc(o)}" data-ans="${q.id}" ${dis}
           ${q.multi?(Array.isArray(v)&&v.includes(o)?'checked':''):(v===o?'checked':'')}>${esc(o)}</label>`).join('');
-      if(q.allowOther)ctl+=`<label class="chk" style="font-weight:400"><input type="${q.multi?'checkbox':'radio'}" name="${id}" value="__other" data-ans="${q.id}" ${dis}>אחר:</label>
-        <input type="text" data-other="${q.id}" placeholder="פרט/י" ${dis}>`;
+      if(q.allowOther){
+        ctl+=`<label class="chk" style="font-weight:400"><input type="${q.multi?'checkbox':'radio'}" name="${id}" value="__other" data-ans="${q.id}" ${dis}>אחר:</label>
+          <input type="text" data-other="${q.id}" placeholder="פרט/י" ${dis}>`;
+      }
     }
-    if(q.type==='text')ctl=q.long
+    if(q.type==='text') ctl=q.long
       ? `<textarea id="${id}" data-ans="${q.id}" ${q.maxLen?`maxlength="${q.maxLen}"`:''} ${dis}>${esc(v||'')}</textarea>`
       : `<input id="${id}" type="text" data-ans="${q.id}" ${q.maxLen?`maxlength="${q.maxLen}"`:''} value="${esc(v||'')}" ${dis}>`;
     if(q.type==='number'){
       const lim=[];
-      if(q.min!=null||q.max!=null)lim.push(q.min!=null&&q.max!=null?`ערך בין ${q.min} ל-${q.max}`:(q.min!=null?`ערך מינימלי ${q.min}`:`ערך מקסימלי ${q.max}`));
-      if(q.minDigits||q.maxDigits)lim.push(q.minDigits&&q.maxDigits?(q.minDigits===q.maxDigits?`${q.maxDigits} ספרות בדיוק`:`${q.minDigits}–${q.maxDigits} ספרות`):(q.minDigits?`לפחות ${q.minDigits} ספרות`:`עד ${q.maxDigits} ספרות`));
+      if(q.min!=null||q.max!=null) lim.push(q.min!=null&&q.max!=null?`ערך בין ${q.min} ל-${q.max}`:(q.min!=null?`ערך מינימלי ${q.min}`:`ערך מקסימלי ${q.max}`));
+      if(q.minDigits||q.maxDigits) lim.push(q.minDigits&&q.maxDigits?(q.minDigits===q.maxDigits?`${q.maxDigits} ספרות בדיוק`:`${q.minDigits}–${q.maxDigits} ספרות`):(q.minDigits?`לפחות ${q.minDigits} ספרות`:`עד ${q.maxDigits} ספרות`));
       ctl=`<input id="${id}" type="text" inputmode="numeric" autocomplete="off" data-ans="${q.id}" data-numans ${q.maxDigits?`maxlength="${q.maxDigits}"`:''} value="${esc(v??'')}" ${dis}>
         ${lim.length?`<p class="hint">${lim.join(' · ')}</p>`:''}`;
     }
-    if(q.type==='id')ctl=`<input id="${id}" type="text" inputmode="numeric" autocomplete="off" data-ans="${q.id}" data-idans maxlength="9" value="${esc(v??'')}" ${dis}>
+    if(q.type==='id') ctl=`<input id="${id}" type="text" inputmode="numeric" autocomplete="off" data-ans="${q.id}" data-idans maxlength="9" value="${esc(v??'')}" ${dis}>
       <p class="hint">9 ספרות, כולל ספרת ביקורת</p>`;
-    if(q.type==='date')ctl=`<input id="${id}" type="date" data-ans="${q.id}" value="${esc(v||'')}" ${dis}>`;
+    if(q.type==='date') ctl=`<input id="${id}" type="date" data-ans="${q.id}" value="${esc(v||'')}" ${dis}>`;
     if(q.type==='rating'){
-      if(q.scale==='likert')ctl=`<div class="likert">${LIKERT.map((l,li)=>`<button type="button" data-rate="${q.id}" data-v="${li+1}" aria-pressed="${v===li+1}" ${dis}>${l}</button>`).join('')}</div>`;
-      else{const n=q.scale==='stars10'?10:5;
-        ctl=`<div class="stars" role="group" aria-label="דירוג מתוך ${n}">${Array.from({length:n},(_,k)=>
-          `<button type="button" class="star ${v>=k+1?'on':''}" data-rate="${q.id}" data-v="${k+1}" aria-label="${k+1}" ${dis}>★</button>`).join('')}</div>
-          <p class="hint">${v?`נבחר: ${v} מתוך ${n}`:'טרם נבחר דירוג'}</p>`;}
+      if(q.scale==='likert') ctl=`<div class="likert">${LIKERT.map((l,li)=>`<button type="button" data-rate="${q.id}" data-v="${li+1}" aria-pressed="${v===li+1}" ${dis}>${l}</button>`).join('')}</div>`;
+      else {
+        const n=q.scale==='stars10'?10:5;
+        ctl=`<div class="stars" role="group" aria-label="דירוג מתוך ${n}">${Array.from({length:n},(_,k)=>`<button type="button" class="star ${v>=k+1?'on':''}" data-rate="${q.id}" data-v="${k+1}" aria-label="${k+1}" ${dis}>★</button>`).join('')}</div>
+          <p class="hint">${v?`נבחר: ${v} מתוך ${n}`:'טרם נבחר דירוג'}</p>`;
+      }
     }
     if(q.type==='file'){
       const names=Array.isArray(v)?v.map(x=>esc(x.name)).join(', '):'';
-      ctl=`<input id="${id}" type="file" data-ans="${q.id}" data-file ${q.maxFiles>1?'multiple':''} accept="${q.accept.split(',').map(x=>'.'+x.trim()).join(',')}" ${dis}>
-        <p class="hint">סוגים: ${esc(q.accept)} · עד ${q.maxSizeMB}MB לקובץ · עד ${q.maxFiles} קבצים</p>${names?`<p class="hint">נבחרו: ${names}</p>`:''}`;
+      ctl=`<input id="${id}" type="file" data-ans="${q.id}" data-file ${q.maxFiles>1?'multiple':''} accept="${(q.accept||'').split(',').map(x=>'.'+x.trim()).filter(Boolean).join(',')}" ${dis}>
+        <p class="hint">סוגים: ${esc(q.accept||'')} · עד ${q.maxSizeMB||0}MB לקובץ · עד ${q.maxFiles||1} קבצים</p>${names?`<p class="hint">נבחרו: ${names}</p>`:''}`;
     }
     return `<div class="fq"><label for="${id}">${i+1}. ${esc(q.title||'(שאלה ללא נוסח)')} ${q.required?'<span class="req" aria-hidden="true">*</span><span class="skip">חובה</span>':''}</label>
       ${ctl}${e?`<p class="err" role="alert">${esc(e)}</p>`:''}</div>`;
@@ -472,59 +511,67 @@ function face(f,mode){
 }
 function viewPublic(id){
   const f=getForm(id);
-  if(!f)return $('#app').innerHTML=shell('<div class="empty">הטופס לא נמצא.</div>',true);
-  if(S.sent)return $('#app').innerHTML=shell(`<div class="card" style="text-align:center">
-      <h1 style="color:${f.color}">✓ נשלח</h1><p style="white-space:pre-wrap">${esc(f.settings.thanks)}</p></div>`,true);
-  if(!isOpen(f))return $('#app').innerHTML=shell(`<div class="card" style="text-align:center"><h1>הטופס סגור</h1>
-      <p class="hint">${f.settings.maxResponses&&resOf(f.id).length>=f.settings.maxResponses?'מכסת המשיבים מולאה.':'הטופס אינו פתוח למענה בשלב זה.'}</p></div>`,true);
-  const t=f.settings.timeLimit;
-  if(t&&S.timeLeft===null)S.timeLeft=t*60;
+  if(!f) return $('#app').innerHTML=shell('<div class="empty">הטופס לא נמצא.</div>',true);
+  if(S.sent) return $('#app').innerHTML=shell(`<div class="card" style="text-align:center"><h1 style="color:${f.color}">✓ נשלח</h1><p style="white-space:pre-wrap">${esc(f.settings?.thanks||'')}</p></div>`,true);
+  if(!isOpen(f)) return $('#app').innerHTML=shell(`<div class="card" style="text-align:center"><h1>הטופס סגור</h1><p class="hint">${f.settings?.maxResponses&&resOf(f.id).length>=f.settings.maxResponses?'מכסת המשיבים מולאה.':'הטופס אינו פתוח למענה בשלב זה.'}</p></div>`,true);
+  const t=f.settings?.timeLimit;
+  if(t && S.timeLeft===null) S.timeLeft=t*60;
   $('#app').innerHTML=shell(`${t?`<div class="timer" id="tm" role="timer">נותרו ${mmss(S.timeLeft)} למילוי</div>`:''}
     <div class="device ${S.device==='mobile'?'mobile':''}" style="max-width:680px">${face(f,'live')}</div>
     <p class="hint" style="text-align:center">מופעל על ידי Formify</p>`,true);
-  if(t&&!S.timer){S.startedAt=Date.now();
-    S.timer=setInterval(()=>{S.timeLeft--;const el=$('#tm');
-      if(S.timeLeft<=0){clearTimer();S.locked=true;route();if($('#tm'))$('#tm').textContent='הזמן תם — לא ניתן להמשיך במילוי';}
-      else if(el)el.textContent='נותרו '+mmss(S.timeLeft)+' למילוי';},1000);}
+  if(t && !S.timer){
+    S.startedAt=Date.now();
+    S.timer=setInterval(()=>{
+      S.timeLeft = Math.max(0, (S.timeLeft ?? 0) - 1);
+      const el=$('#tm');
+      if(S.timeLeft<=0){
+        clearTimer(); S.locked=true; route();
+        if($('#tm')) $('#tm').textContent='הזמן תם — לא ניתן להמשיך במילוי';
+      } else if(el) {
+        el.textContent='נותרו '+mmss(S.timeLeft)+' למילוי';
+      }
+    },1000);
+  }
 }
-const mmss=s=>String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0');
+const mmss=s=>String(Math.floor((Number(s)||0)/60)).padStart(2,'0')+':'+String((Number(s)||0)%60).padStart(2,'0');
 
 function validIsraeliId(s){
-  const d=String(s).padStart(9,'0');let sum=0;
-  for(let i=0;i<9;i++){let x=+d[i]*((i%2)+1);if(x>9)x-=9;sum+=x}
+  const d=String(s).padStart(9,'0'); let sum=0;
+  for(let i=0;i<9;i++){ let x=+d[i]*((i%2)+1); if(x>9) x-=9; sum+=x; }
   return sum%10===0;
 }
 function validate(f){
   const e={};
-  f.questions.forEach(q=>{
+  (f.questions||[]).forEach(q=>{
     const v=S.ans[q.id];
     const empty=v===undefined||v===null||v===''||(Array.isArray(v)&&!v.length);
-    if(q.required&&empty){e[q.id]='שדה חובה — נא למלא';return}
-    if(empty)return;
+    if(q.required&&empty){ e[q.id]='שדה חובה — נא למלא'; return; }
+    if(empty) return;
     if(q.type==='text'){
-      if(q.minLen&&String(v).length<q.minLen)e[q.id]=`נדרשים לפחות ${q.minLen} תווים`;
-      if(q.maxLen&&String(v).length>q.maxLen)e[q.id]=`עד ${q.maxLen} תווים`;
+      if(q.minLen && String(v).length < q.minLen) e[q.id]=`נדרשים לפחות ${q.minLen} תווים`;
+      if(q.maxLen && String(v).length > q.maxLen) e[q.id]=`עד ${q.maxLen} תווים`;
     }
     if(q.type==='number'){
-      const raw=String(v).trim(), digits=raw.replace(/\D/g,'').length, n=Number(raw);
-      if(!/^-?\d+(\.\d+)?$/.test(raw))e[q.id]='נא להזין מספר תקין (ספרות בלבד)';
-      else if(q.minDigits&&digits<q.minDigits)e[q.id]=`נדרשות לפחות ${q.minDigits} ספרות — הוקלדו ${digits}`;
-      else if(q.maxDigits&&digits>q.maxDigits)e[q.id]=`ניתן להקליד עד ${q.maxDigits} ספרות — הוקלדו ${digits}`;
-      else if(q.min!=null&&n<q.min)e[q.id]=`הערך חייב להיות ${q.min} או יותר`;
-      else if(q.max!=null&&n>q.max)e[q.id]=`הערך חייב להיות ${q.max} או פחות`;
+      const raw=String(v).trim(); const digits=raw.replace(/\D/g,'').length; const n=Number(raw);
+      if(!/^-?\d+(\.\d+)?$/.test(raw)) e[q.id]='נא להזין מספר תקין (ספרות בלבד)';
+      else if(q.minDigits && digits < q.minDigits) e[q.id]=`נדרשות לפחות ${q.minDigits} ספרות — הוקלדו ${digits}`;
+      else if(q.maxDigits && digits > q.maxDigits) e[q.id]=`ניתן להקליד עד ${q.maxDigits} ספרות — הוקלדו ${digits}`;
+      else if(q.min!=null && n < q.min) e[q.id]=`הערך חייב להיות ${q.min} או יותר`;
+      else if(q.max!=null && n > q.max) e[q.id]=`הערך חייב להיות ${q.max} או פחות`;
     }
     if(q.type==='id'){
       const raw=String(v).replace(/\D/g,'');
-      if(raw.length!==9)e[q.id]='תעודת זהות חייבת להכיל 9 ספרות (כולל אפסים מובילים)';
-      else if(q.checkDigit&&!validIsraeliId(raw))e[q.id]='מספר תעודת הזהות אינו תקין — נא לבדוק את הספרות';
+      if(raw.length!==9) e[q.id]='תעודת זהות חייבת להכיל 9 ספרות (כולל אפסים מובילים)';
+      else if(q.checkDigit && !validIsraeliId(raw)) e[q.id]='מספר תעודת הזהות אינו תקין — נא לבדוק את הספרות';
     }
     if(q.type==='file'){
-      const ok=q.accept.split(',').map(x=>x.trim().toLowerCase());
-      if(v.length>q.maxFiles)e[q.id]=`ניתן להעלות עד ${q.maxFiles} קבצים`;
-      v.forEach(x=>{
+      const arr=Array.isArray(v)?v:[];
+      const ok=(q.accept||'').split(',').map(x=>x.trim().toLowerCase()).filter(Boolean);
+      if(arr.length > (q.maxFiles || 1)) e[q.id]=`ניתן להעלות עד ${q.maxFiles || 1} קבצים`;
+      arr.forEach(x=>{
         const ext=(x.name.split('.').pop()||'').toLowerCase();
-        if(!ok.includes(ext))e[q.id]=`סוג הקובץ ${ext} אינו מותר`;
-        if(x.size>q.maxSizeMB*1048576)e[q.id]=`הקובץ ${x.name} גדול מ-${q.maxSizeMB}MB`;
+        if(ok.length && !ok.includes(ext)) e[q.id]=`סוג הקובץ ${ext} אינו מותר`;
+        if((x.size || 0) > ((q.maxSizeMB || 0) * 1048576)) e[q.id]=`הקובץ ${x.name} גדול מ-${q.maxSizeMB || 0}MB`;
       });
     }
   });
@@ -533,11 +580,11 @@ function validate(f){
 
 /* ===================== תשובות וניתוח ===================== */
 function viewResults(id){
-  const f=getForm(id); if(!f)return go('/');
+  const f=getForm(id); if(!f) return go('/');
   const rs=resOf(id).sort((a,b)=>b.at-a.at);
-  const avgDur=rs.length?Math.round(rs.reduce((s,r)=>s+(r.dur||0),0)/rs.length):0;
-  const analytics=f.questions.map(q=>qAnalytics(q,rs)).join('');
-  const r=rs[S.respIdx];
+  const avgDur=rs.length ? Math.round(rs.reduce((s,r)=>s+(r.dur||0),0)/rs.length) : 0;
+  const analytics=(f.questions || []).map(q=>qAnalytics(q,rs)).join('');
+  const r=rs[S.respIdx] || null;
   $('#app').innerHTML=shell(`
     <div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap">
       <h1>תשובות · ${esc(f.name)}</h1>
@@ -549,7 +596,7 @@ function viewResults(id){
     </div>
     <div class="kpi" style="margin:14px 0">
       <div><span class="hint">סה״כ תשובות</span><b>${rs.length}</b></div>
-      <div><span class="hint">מכסה</span><b>${f.settings.maxResponses?rs.length+'/'+f.settings.maxResponses:'∞'}</b></div>
+      <div><span class="hint">מכסה</span><b>${f.settings?.maxResponses?rs.length+'/'+f.settings.maxResponses:'∞'}</b></div>
       <div><span class="hint">זמן מילוי ממוצע</span><b>${avgDur?mmss(avgDur):'—'}</b></div>
       <div><span class="hint">סטטוס</span><b style="font-size:1.1rem">${isOpen(f)?'פתוח':'סגור'}</b></div>
     </div>
@@ -557,163 +604,159 @@ function viewResults(id){
     <div class="card"><h2>תשובות אינדיבידואליות</h2>
       ${rs.length?`<div class="row" style="align-items:center">
           <button class="btn sm" data-act="rnav" data-d="-1" ${S.respIdx===0?'disabled':''}>→ קודם</button>
-          <span style="text-align:center">משיב ${S.respIdx+1} מתוך ${rs.length} · ${fmt(r.at)}</span>
+          <span style="text-align:center">משיב ${S.respIdx+1} מתוך ${rs.length} · ${fmt(r?.at)}</span>
           <button class="btn sm" data-act="rnav" data-d="1" ${S.respIdx>=rs.length-1?'disabled':''}>הבא ←</button></div>
         <table style="margin-top:10px"><thead><tr><th>שאלה</th><th>תשובה</th></tr></thead><tbody>
-        ${f.questions.map(q=>`<tr><td>${esc(q.title||'—')}</td><td>${esc(cellText(r.answers[q.id]))}</td></tr>`).join('')}
+        ${(f.questions || []).map(q=>`<tr><td>${esc(q.title||'—')}</td><td>${esc(cellText(r?.answers?.[q.id]))}</td></tr>`).join('')}
         </tbody></table>`:'<div class="empty">אין עדיין תשובות.</div>'}
     </div>`);
 }
 const cellText=v=>Array.isArray(v)?v.map(x=>x&&x.name?x.name:x).join(' | '):(v===undefined||v===null||v===''?'—':String(v));
 function qAnalytics(q,rs){
-  const vals=rs.map(r=>r.answers[q.id]).filter(v=>v!==undefined&&v!==null&&v!=='');
+  const vals=(rs||[]).map(r=>r.answers?.[q.id]).filter(v=>v!==undefined&&v!==null&&v!=='');
   const head=`<h3 style="margin-top:18px">${esc(q.title||'(ללא נוסח)')} <span class="hint">· ${vals.length} מענים</span></h3>`;
-  if(!vals.length)return head+'<p class="hint">אין מענים לשאלה זו.</p>';
+  if(!vals.length) return head+'<p class="hint">אין מענים לשאלה זו.</p>';
   if(q.type==='choice'){
     const flat=vals.flatMap(v=>Array.isArray(v)?v:[v]);
-    const labels=[...q.options,...(q.allowOther?['אחר']:[])];
-    const counts=labels.map(o=>flat.filter(x=>x===o||(o==='אחר'&&!q.options.includes(x))).length);
-    const tot=counts.reduce((a,b)=>a+b,0)||1;let acc=0;
-    const stops=counts.map((c,i)=>{const from=acc/tot*100;acc+=c;return `${PAL[i%PAL.length]} ${from.toFixed(1)}% ${(acc/tot*100).toFixed(1)}%`}).join(',');
+    const labels=[...(q.options || []), ...(q.allowOther ? ['אחר'] : [])];
+    const counts=labels.map(o=>flat.filter(x=>x===o || (o==='אחר' && !(q.options||[]).includes(x))).length);
+    const tot=counts.reduce((a,b)=>a+b,0)||1; let acc=0;
+    const stops=counts.map((c,i)=>{ const from=acc/tot*100; acc+=c; return `${PAL[i%PAL.length]} ${from.toFixed(1)}% ${(acc/tot*100).toFixed(1)}%`; }).join(',');
     return head+`<div class="row" style="align-items:center">
       <div class="pie" style="background:conic-gradient(${stops})" role="img" aria-label="דיאגרמת עוגה"></div>
       <ul class="legend" style="padding:0;flex:2 1 260px">${labels.map((o,i)=>`<li><span class="dot" style="background:${PAL[i%PAL.length]}"></span>
         <span style="flex:1">${esc(o)}</span><b>${counts[i]}</b><span class="hint">(${Math.round(counts[i]/tot*100)}%)</span></li>`).join('')}</ul></div>`;
   }
-  if(q.type==='rating'||(q.type==='number'&&!(q.maxDigits>=6))){
+  if(q.type==='rating' || (q.type==='number' && !(q.maxDigits>=6))) {
     const nums=vals.map(Number).filter(Number.isFinite);
+    if(!nums.length) return head+'<p class="hint">אין ערכים מספריים.</p>';
     const avg=(nums.reduce((a,b)=>a+b,0)/nums.length);
     const max=q.type==='rating'?(q.scale==='stars10'?10:5):Math.max(...nums);
-    const dist={};nums.forEach(n=>dist[n]=(dist[n]||0)+1);
+    const dist={}; nums.forEach(n=>dist[n]=(dist[n]||0)+1);
     const keys=Object.keys(dist).sort((a,b)=>a-b);
     return head+`<p><b>ממוצע: ${avg.toFixed(2)}</b>${q.type==='rating'?' מתוך '+max:''} · מינימום ${Math.min(...nums)} · מקסימום ${Math.max(...nums)}</p>
       ${keys.map(k=>`<div><span class="hint">${q.scale==='likert'?esc(LIKERT[k-1]||k):k} — ${dist[k]}</span>
         <div class="bar"><i style="width:${dist[k]/nums.length*100}%"></i></div></div>`).join('')}`;
   }
-  if(q.type==='file')return head+`<ul>${vals.flatMap(v=>Array.isArray(v)?v:[v]).map(x=>`<li>${esc(x.name||x)}</li>`).join('')}</ul>`;
+  if(q.type==='file') return head+`<ul>${vals.flatMap(v=>Array.isArray(v)?v:[v]).map(x=>`<li>${esc(x.name||x)}</li>`).join('')}</ul>`;
   return head+`<ul>${vals.slice(0,20).map(v=>`<li>${esc(v)}</li>`).join('')}</ul>${vals.length>20?`<p class="hint">מוצגות 20 התשובות הראשונות מתוך ${vals.length}.</p>`:''}`;
 }
 function exportCSV(f){
   const rs=resOf(f.id).sort((a,b)=>a.at-b.at);
-  const head=['#','תאריך שליחה','זמן מילוי',...f.questions.map(q=>q.title||'שאלה')];
+  const head=['#','תאריך שליחה','זמן מילוי',...(f.questions||[]).map(q=>q.title||'שאלה')];
   const cell=s=>`"${String(s).replace(/"/g,'""')}"`;
-  const rows=rs.map((r,i)=>[i+1,fmt(r.at),r.dur?mmss(r.dur):'',...f.questions.map(q=>cellText(r.answers[q.id]))].map(cell).join(','));
+  const rows=rs.map((r,i)=>[i+1,fmt(r.at),r.dur?mmss(r.dur):'',...(f.questions||[]).map(q=>cellText(r.answers?.[q.id]))].map(cell).join(','));
   dl(`${(f.name||'form').replace(/[\\/:*?"<>|]/g,'')}.csv`,'\uFEFF'+[head.map(cell).join(','),...rows].join('\r\n'),'text/csv;charset=utf-8');
 }
 
 /* ===================== קישוריות ===================== */
-function setPath(o,p,v){const k=p.split('.');let t=o;while(k.length>1)t=t[k.shift()];t[k[0]]=v}
+function setPath(o,p,v){ const k=p.split('.'); let t=o; while(k.length>1) t=t[k.shift()]; t[k[0]]=v; }
 document.addEventListener('input',e=>{
   const el=e.target, p=el.dataset;
+  if(!p) return;
   const val=el.type==='checkbox'?el.checked
     : p.bool!==undefined?el.value==='1'
     : p.num!==undefined?(el.value===''?null:Number(el.value))
     : el.value;
-  /* --- עריכת טופס --- */
-  const id=(location.hash.split('/')[2]||'');
+
+  const id=(hashId()||'');
   if(p.bind||p.field||p.opt!==undefined){
-    const f=getForm(id); if(!f)return;
-    if(p.bind)setPath(f,p.bind,val);
-    if(p.q){const q=f.questions.find(x=>x.id===p.q);
-      if(p.opt!==undefined)q.options[+p.opt]=el.value; else q[p.field]=val;}
+    const f=getForm(id); if(!f) return;
+    if(p.bind) setPath(f,p.bind,val);
+    if(p.q){ const q=f.questions.find(x=>x.id===p.q); if(q){ if(p.opt!==undefined) q.options[+p.opt]=el.value; else if(p.field) q[p.field]=val; } }
     saveForm(f);
-    if($('#cnt')&&p.bind==='name')$('#cnt').textContent=(f.name||'').length+'/100';
-    if(p.rerender!==undefined)viewEditor(id);
+    if($('#cnt') && p.bind==='name') $('#cnt').textContent=(f.name||'').length+'/100';
+    if(p.rerender!==undefined) viewEditor(id);
     return;
   }
-  /* --- מענה --- */
+
   if(p.ans!==undefined){
-    const q=getForm(location.hash.split('/')[2]).questions.find(x=>x.id===p.ans);
-    if(p.file!==undefined){S.ans[q.id]=[...el.files].map(x=>({name:x.name,size:x.size}))}
-    else if(q.type==='choice'&&q.multi){
+    const form = getForm(hashId());
+    if(!form) return;
+    const q=form.questions.find(x=>x.id===p.ans);
+    if(!q) return;
+    if(p.file!==undefined){ S.ans[q.id] = [...el.files].map(x=>({name:x.name,size:x.size})); }
+    else if(q.type==='choice' && q.multi){
       const box=[...document.querySelectorAll(`[data-ans="${q.id}"]:checked`)].map(x=>x.value);
-      S.ans[q.id]=box.map(v=>v==='__other'?(document.querySelector(`[data-other="${q.id}"]`)?.value||'אחר'):v);
+      S.ans[q.id]=box.map(v=>v==='__other' ? (document.querySelector(`[data-other="${q.id}"]`)?.value || 'אחר') : v);
     } else if(q.type==='choice'){
-      S.ans[q.id]=el.value==='__other'?(document.querySelector(`[data-other="${q.id}"]`)?.value||'אחר'):el.value;
-    } else if(p.numans!==undefined){const c=el.value.replace(/[^\d.-]/g,'');if(c!==el.value)el.value=c;S.ans[q.id]=c===''?null:c}
-    else if(p.idans!==undefined){const c=el.value.replace(/\D/g,'').slice(0,9);if(c!==el.value)el.value=c;S.ans[q.id]=c===''?null:c}
-    else S.ans[q.id]=el.value;
+      S.ans[q.id]=el.value==='__other' ? (document.querySelector(`[data-other="${q.id}"]`)?.value || 'אחר') : el.value;
+    } else if(p.numans!==undefined){
+      const c=el.value.replace(/[^\d.-]/g,''); if(c!==el.value) el.value=c; S.ans[q.id]=c===''?null:c;
+    } else if(p.idans!==undefined){
+      const c=el.value.replace(/\D/g,'').slice(0,9); if(c!==el.value) el.value=c; S.ans[q.id]=c===''?null:c;
+    } else S.ans[q.id]=el.value;
   }
-  if(p.other!==undefined){const qid=p.other;const sel=document.querySelector(`[data-ans="${qid}"][value="__other"]`);
-    if(sel&&sel.checked)S.ans[qid]=el.value||'אחר';}
+
+  if(p.other!==undefined){
+    const qid=p.other; const sel=document.querySelector(`[data-ans="${qid}"][value="__other"]`);
+    if(sel && sel.checked) S.ans[qid]=el.value || 'אחר';
+  }
 });
 document.addEventListener('keydown',e=>{
   const ds=e.target.dataset;
   if((ds.numans!==undefined||ds.idans!==undefined)&&e.key.length===1&&!e.ctrlKey&&!e.metaKey
-     &&!/[0-9]/.test(e.key)&&!(ds.numans!==undefined&&/[.-]/.test(e.key)))e.preventDefault();
+     &&!/[0-9]/.test(e.key)&&!(ds.numans!==undefined&&/[.-]/.test(e.key))) e.preventDefault();
 });
 document.addEventListener('click',e=>{
-  const b=e.target.closest('[data-act],[data-rate]'); if(!b)return;
-  const p=b.dataset, id=p.id||location.hash.split('/')[2];
-  if(p.act==='tolen'){const f=getForm(id),q=f.questions.find(x=>x.id===p.q);
-    q.minDigits=q.min??null;q.maxDigits=q.max??null;q.min=null;q.max=null;saveForm(f);viewEditor(id);return toast('הוגדרה מגבלת ספרות')}
-  if(p.rate){S.ans[p.rate]=+p.v;return route()}
+  const b=e.target.closest('[data-act],[data-rate]'); if(!b) return;
+  const p=b.dataset, id=p.id||hashId();
+  if(p.act==='tolen'){ const f=getForm(id); if(!f) return; const q=f.questions.find(x=>x.id===p.q); if(!q) return; q.minDigits=q.min??null; q.maxDigits=q.max??null; q.min=null; q.max=null; saveForm(f); viewEditor(id); return toast('הוגדרה מגבלת ספרות'); }
+  if(p.rate){ S.ans[p.rate]=+p.v; return route(); }
   switch(p.act){
-    case 'home':return go('/');
-    case 'new':{const f=newForm(p.tpl||'');saveForm(f);S.tab=1;return go('/edit/'+f.id)}
-    case 'edit':S.tab=1;return go('/edit/'+id);
-    case 'res':S.respIdx=0;return go('/res/'+id);
-    case 'openf':return go('/f/'+id);
-    case 'dup':{const o=getForm(id);const f=JSON.parse(JSON.stringify(o));
-      f.id=uid();f.name=o.name+' — עותק';f.published=false;f.createdAt=Date.now();
-      f.questions.forEach(q=>q.id=uid());saveForm(f);toast('הטופס שוכפל');return route()}
-    case 'del':if(confirm('למחוק את הטופס וכל תשובותיו?')){db.setForms(db.forms().filter(f=>f.id!==id));
-      db.setRes(db.res().filter(r=>r.formId!==id));toast('נמחק')}return route();
-    case 'tab':S.tab=+p.n;return viewEditor(id);
-    case 'next':S.tab=Math.min(4,S.tab+1);return viewEditor(id);
-    case 'addq':{const f=getForm(id);f.questions.push(newQ(p.t));saveForm(f);return viewEditor(id)}
-    case 'delq':{const f=getForm(id);f.questions=f.questions.filter(q=>q.id!==p.q);saveForm(f);return viewEditor(id)}
-    case 'dupq':{const f=getForm(id);const i=f.questions.findIndex(q=>q.id===p.q);
-      const c=JSON.parse(JSON.stringify(f.questions[i]));c.id=uid();f.questions.splice(i+1,0,c);saveForm(f);return viewEditor(id)}
-    case 'mv':{const f=getForm(id);const i=f.questions.findIndex(q=>q.id===p.q);const j=i+ +p.d;
-      if(j<0||j>=f.questions.length)return;[f.questions[i],f.questions[j]]=[f.questions[j],f.questions[i]];saveForm(f);return viewEditor(id)}
-    case 'addopt':{const f=getForm(id);const q=f.questions.find(x=>x.id===p.q);
-      q.options.push('אפשרות '+(q.options.length+1));saveForm(f);return viewEditor(id)}
-    case 'delopt':{const f=getForm(id);const q=f.questions.find(x=>x.id===p.q);
-      if(q.options.length>1)q.options.splice(+p.i,1);saveForm(f);return viewEditor(id)}
-    case 'color':{const f=getForm(id);f.color=p.c;saveForm(f);return viewEditor(id)}
-    case 'banner':{const f=getForm(id);f.banner=p.b;saveForm(f);return viewEditor(id)}
-    case 'dev':S.device=p.d;return viewEditor(id);
-    case 'publish':{const f=getForm(id);
-      if(!f.name.trim())return toast('חובה להזין שם טופס');
-      if(!f.questions.length)return toast('יש להוסיף לפחות שאלה אחת');
-      f.published=true;saveForm(f);S.tab=4;viewEditor(id);return toast('הטופס פורסם — הקישור נוצר')}
-    case 'copy':navigator.clipboard.writeText(p.l).then(()=>toast('הקישור הועתק'),()=>toast('העתקה נכשלה'));return;
-    case 'csv':return exportCSV(getForm(id));
-    case 'zip':return toast('הורדת קבצים כ-ZIP דורשת שרת — ראו הערות המימוש');
-    case 'rnav':{const n=resOf(id).length;S.respIdx=Math.max(0,Math.min(n-1,S.respIdx+ +p.d));return viewResults(id)}
-    case 'submit':{const f=getForm(id);
-      if(!isOpen(f)||S.locked)return toast('הטופס אינו פתוח למענה');
-      S.errs=validate(f);
-      if(Object.keys(S.errs).length){route();const first=document.querySelector('.err');
-        if(first)first.scrollIntoView({behavior:'smooth',block:'center'});return toast('יש שדות הדורשים תיקון')}
-      const dur=S.startedAt?Math.round((Date.now()-S.startedAt)/1000):null;
-      db.setRes([...db.res(),{id:uid(),formId:f.id,at:Date.now(),dur,answers:{...S.ans}}]);
-      clearTimer();S.sent=true;S.ans={};return route()}
+    case 'home': return go('/');
+    case 'new': { const f=newForm(p.tpl||''); saveForm(f); S.tab=1; return go('/edit/'+f.id); }
+    case 'edit': S.tab=1; return go('/edit/'+id);
+    case 'res': S.respIdx=0; return go('/res/'+id);
+    case 'openf': return go('/f/'+id);
+    case 'dup': { const o=getForm(id); if(!o) return; const f=JSON.parse(JSON.stringify(o)); f.id=uid(); f.name=o.name+' — עותק'; f.published=false; f.createdAt=Date.now(); f.questions.forEach(q=>q.id=uid()); saveForm(f); toast('הטופס שוכפל'); return route(); }
+    case 'del': if(confirm('למחוק את הטופס וכל תשובותיו?')){ db.setForms(db.forms().filter(f=>String(f.id)!==String(id))); db.setRes(db.res().filter(r=>String(r.formId)!==String(id))); toast('נמחק'); } return route();
+    case 'tab': S.tab=+p.n; return viewEditor(id);
+    case 'next': S.tab=Math.min(4,S.tab+1); return viewEditor(id);
+    case 'addq': { const f=getForm(id); if(!f) return; f.questions.push(newQ(p.t)); saveForm(f); return viewEditor(id); }
+    case 'delq': { const f=getForm(id); if(!f) return; f.questions=f.questions.filter(q=>q.id!==p.q); saveForm(f); return viewEditor(id); }
+    case 'dupq': { const f=getForm(id); if(!f) return; const i=f.questions.findIndex(q=>q.id===p.q); if(i<0) return; const c=JSON.parse(JSON.stringify(f.questions[i])); c.id=uid(); f.questions.splice(i+1,0,c); saveForm(f); return viewEditor(id); }
+    case 'mv': { const f=getForm(id); if(!f) return; const i=f.questions.findIndex(q=>q.id===p.q); const j=i+ +p.d; if(j<0||j>=f.questions.length) return; [f.questions[i],f.questions[j]]=[f.questions[j],f.questions[i]]; saveForm(f); return viewEditor(id); }
+    case 'addopt': { const f=getForm(id); if(!f) return; const q=f.questions.find(x=>x.id===p.q); if(!q) return; q.options.push('אפשרות '+(q.options.length+1)); saveForm(f); return viewEditor(id); }
+    case 'delopt': { const f=getForm(id); if(!f) return; const q=f.questions.find(x=>x.id===p.q); if(!q) return; if(q.options.length>1) q.options.splice(+p.i,1); saveForm(f); return viewEditor(id); }
+    case 'color': { const f=getForm(id); if(!f) return; f.color=p.c; saveForm(f); return viewEditor(id); }
+    case 'banner': { const f=getForm(id); if(!f) return; f.banner=p.b; saveForm(f); return viewEditor(id); }
+    case 'dev': S.device=p.d; return viewEditor(id);
+    case 'publish': { const f=getForm(id); if(!f) return; if(!f.name.trim()) return toast('חובה להזין שם טופס'); if(!f.questions.length) return toast('יש להוסיף לפחות שאלה אחת'); f.published=true; saveForm(f); S.tab=4; viewEditor(id); return toast('הטופס פורסם — הקישור נוצר'); }
+    case 'copy': if(navigator.clipboard && window.isSecureContext){ navigator.clipboard.writeText(p.l).then(()=>toast('הקישור הועתק'),()=>toast('העתקה נכשלה')); } else { const t=document.createElement('textarea'); t.value=p.l; document.body.appendChild(t); t.select(); try { document.execCommand('copy'); toast('הקישור הועתק'); } catch { toast('העתקה נכשלה'); } finally { t.remove(); } } return;
+    case 'csv': return exportCSV(getForm(id));
+    case 'zip': return toast('הורדת קבצים כ-ZIP דורשת שרת — ראו הערות המימוש');
+    case 'rnav': { const n=resOf(id).length; S.respIdx=Math.max(0,Math.min(n-1,S.respIdx + +p.d)); return viewResults(id); }
+    case 'submit': { const f=getForm(id); if(!f) return; if(!isOpen(f)||S.locked) return toast('הטופס אינו פתוח למענה'); S.errs=validate(f); if(Object.keys(S.errs).length){ route(); const first=document.querySelector('.err'); if(first) first.scrollIntoView({behavior:'smooth', block:'center'}); return toast('יש שדות הדורשים תיקון'); } const dur=S.startedAt ? Math.round((Date.now()-S.startedAt)/1000) : null; db.setRes([...db.res(),{id:uid(),formId:f.id,at:Date.now(),dur,answers:{...S.ans}}]); clearTimer(); S.sent=true; S.ans={}; return route(); }
   }
 });
 document.addEventListener('change',e=>{
   if(e.target.dataset.act==='upbanner'){
-    const file=e.target.files[0];if(!file)return;
-    if(file.size>400*1024)return toast('התמונה גדולה מ-400KB');
+    const file=e.target.files[0]; if(!file) return;
+    if(file.size>400*1024) return toast('התמונה גדולה מ-400KB');
     const fr=new FileReader();
-    fr.onload=()=>{const id=location.hash.split('/')[2];const f=getForm(id);f.banner=fr.result;saveForm(f);viewEditor(id)};
+    fr.onload=()=>{ const id=hashId(); const f=getForm(id); if(!f) return; f.banner=fr.result; saveForm(f); viewEditor(id); };
     fr.readAsDataURL(file);
   }
 });
 function wireDrag(f){
   let src=null;
   document.querySelectorAll('.qcard').forEach(c=>{
-    c.addEventListener('dragstart',()=>{src=c.dataset.qid;c.classList.add('drag')});
+    c.addEventListener('dragstart',()=>{ src=c.dataset.qid; c.classList.add('drag'); });
     c.addEventListener('dragend',()=>c.classList.remove('drag'));
-    c.addEventListener('dragover',ev=>{ev.preventDefault();c.classList.add('over')});
+    c.addEventListener('dragover',ev=>{ ev.preventDefault(); c.classList.add('over'); });
     c.addEventListener('dragleave',()=>c.classList.remove('over'));
-    c.addEventListener('drop',ev=>{ev.preventDefault();c.classList.remove('over');
-      const dst=c.dataset.qid;if(!src||src===dst)return;
-      const cur=getForm(f.id), i=cur.questions.findIndex(q=>q.id===src), j=cur.questions.findIndex(q=>q.id===dst);
-      const [m]=cur.questions.splice(i,1);cur.questions.splice(j,0,m);saveForm(cur);viewEditor(f.id);});
+    c.addEventListener('drop',ev=>{
+      ev.preventDefault(); c.classList.remove('over');
+      const dst=c.dataset.qid; if(!src || src===dst) return;
+      const cur=getForm(f.id); if(!cur) return;
+      const i=cur.questions.findIndex(q=>q.id===src); const j=cur.questions.findIndex(q=>q.id===dst);
+      if(i<0 || j<0) return;
+      const [m]=cur.questions.splice(i,1); cur.questions.splice(j,0,m); saveForm(cur); viewEditor(f.id);
+    });
   });
 }
+
 route();
 </script>
 </body>
